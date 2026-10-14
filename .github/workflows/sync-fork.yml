@@ -2,12 +2,14 @@ name: Auto-Sync Fork
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Runs daily at midnight UTC
-  workflow_dispatch: # Allows you to trigger it manually
+    - cron: '0 0/6 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # This grants the token permission to push changes
     steps:
       - name: Sync fork with upstream
         env:
