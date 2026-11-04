@@ -325,6 +325,74 @@
     ]
   },
   {
+    "id": "documents.requests",
+    "title": "Documents › Requests",
+    "figmaPage": "05 · Documents (Firm)",
+    "route": "/documents/requests",
+    "summary": "See every company’s information request at a glance — sent, resolved and pending documents and questions — and pick a company to open its requests.",
+    "component": "FirmRequests",
+    "states": [
+      {
+        "key": "default",
+        "label": "Requests — all companies overview",
+        "figmaNode": "proto:firm-requests:1",
+        "section": "Requests",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "documents.requests.company",
+    "title": "Documents › Requests · company selected",
+    "figmaPage": "05 · Documents (Firm)",
+    "route": "/documents/requests/:companyId",
+    "summary": "One company’s information request, picked from All Companies: the numbered list, who it went to, what came back and what is pending.",
+    "component": "FirmRequests",
+    "states": [
+      {
+        "key": "default",
+        "label": "Requests — company selected",
+        "figmaNode": "proto:firm-requests:2",
+        "section": "Requests",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "documents.questions",
+    "title": "Documents › Questions",
+    "figmaPage": "05 · Documents (Firm)",
+    "route": "/documents/questions",
+    "summary": "See how many questions each company still has to answer, and pick a company to read its answers.",
+    "component": "FirmQuestions",
+    "states": [
+      {
+        "key": "default",
+        "label": "Questions — all companies overview",
+        "figmaNode": "proto:firm-questions:1",
+        "section": "Questions",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "documents.questions.company",
+    "title": "Documents › Questions · company selected",
+    "figmaPage": "05 · Documents (Firm)",
+    "route": "/documents/questions/:companyId",
+    "summary": "One company’s questions, pending and answered, picked from All Companies.",
+    "component": "FirmQuestions",
+    "states": [
+      {
+        "key": "default",
+        "label": "Questions — company selected",
+        "figmaNode": "proto:firm-questions:2",
+        "section": "Questions",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
     "id": "company.summary.holdings",
     "title": "Summary Holdings",
     "figmaPage": "06 · Company · Summary & Financials",

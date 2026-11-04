@@ -1,11 +1,11 @@
 /**
  * Chrome shared by Company · Documents, Questions and Requests: the sub-nav
  * (Documents / Questions / Requests) and the request heading (title, progress
- * ring, request counts, page actions, "New Info Request" and the page ⋮ menu).
+ * bar, request counts, page actions, "New Info Request" and the page ⋮ menu).
  */
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import {
-  Button, ButtonIcon, ContextMenu, Heading, Icon, MenuItem, ProgressRing, TertiaryMenuItem, Text,
+  Button, ButtonIcon, ContextMenu, Heading, Icon, MenuItem, ProgressBar, TertiaryMenuItem, Text,
   icons, space, zIndex,
 } from '@scalar/design-system';
 import { href, navigate } from '../../router.js';
@@ -62,7 +62,13 @@ export function RequestsHeading({ companyId, title, counts, actions, menuOpen: i
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: space.m }}>
       <Heading level={2} step="2xl">{title}</Heading>
-      <ProgressRing value={counts.done} max={counts.total} label={counts.label} />
+      {/* A slim determinate bar (Feedback › ProgressBar) with its fraction, so the count stays readable. */}
+      <div style={{ flex: '0 0 15%', display: 'flex', alignItems: 'center', gap: space.s }}>
+        <ProgressBar value={counts.total ? (counts.done / counts.total) * 100 : 0} label={counts.label} />
+        <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+          {counts.done}/{counts.total}
+        </Text>
+      </div>
       <Text step="m" tone="secondary">{counts.text}</Text>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.s, position: 'relative' }}>
         {actions}

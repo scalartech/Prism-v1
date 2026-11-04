@@ -25,6 +25,26 @@ Behaviour & rules:
 - "Select all documents" checks every file row; indeterminate when some are checked.
 - Viewer body text is placeholder copy, not the real PDF.
 
+### Requests — `/documents/requests` and `/documents/requests/:companyId` (prototype states)
+Tier 3 of firm Documents is **Documents · Questions · Requests**, the same three as Company › Documents. On Requests the All Companies column (search, fund chip) shows each company's pending count or "All resolved".
+- **No company picked:** a second column, *Pending requests*, lists only the companies with something pending (most pending first). Picking one opens a third column: a `Card` (Core/Card › With Tag And Action) titled with the company, a "N pending" warning `Chip` as its tag, `CardItem` rows for Fund, Sent, Resolved, Documents pending, Questions pending, Due and Sent to, and an *Open requests* action that selects the company. Clicking the same company again closes the card.
+- **Company picked** (the id is in the URL, so it can be shared): the company's request exactly as Company › Documents › Requests shows it (`useRequestsWorkspace`) — categories, Sent to, numbered list, Expand / Status / Select All / Bulk actions / Due date / Info Request in Tier 3.
+
+| State | Label | Node |
+|---|---|---|
+| default (`/documents/requests`) | Requests — all companies overview | proto:firm-requests:1 |
+| default (`/documents/requests/:companyId`) | Requests — company selected | proto:firm-requests:2 |
+
+### Questions — `/documents/questions` and `/documents/questions/:companyId` (prototype states)
+Same layout: the column shows each company's open questions; *Pending questions* lists the companies with questions waiting, and picking one shows a card with Fund, Sent, Answered, Pending and Due (action: *Open questions*). Under the card, the company's *Pending answer* list (`RequestRow`, same as Company › Questions) lets the user answer, mark N/A, complete or delegate in place; the card and the list update as soon as an answer is saved, and the company stays listed after its last answer (tag: "All answered"); a picked company shows its questions split Pending answer / Answered (`useQuestionsWorkspace`), with Info Request in Tier 3.
+
+| State | Label | Node |
+|---|---|---|
+| default (`/documents/questions`) | Questions — all companies overview | proto:firm-questions:1 |
+| default (`/documents/questions/:companyId`) | Questions — company selected | proto:firm-questions:2 |
+
+Every count here, on the company pages and in Firm Valuations › Process Management reads the same per-company request list.
+
 ## Cross-platform links
 - In: Primary Menu → Documents; Waterfalls Workspace drawer file rows (04); company Documents row menu "Open in viewer" (10).
 - Out: Upload Document → Company · Documents upload modal (10); empty viewer → Company · Documents (10).
@@ -36,4 +56,5 @@ Behaviour & rules:
 - The tree's files are the frame's Backside Blocks set for every company (export names carry the company's name); per-company file data is not in the db.
 - "Filter by Fund" shows the value in force ("All funds"); the fund filter menu is not built.
 - Search / Filter / Full-screen toolbar icons and the viewer's download/copy/rename/delete are inert. Viewer body is placeholder copy.
-
+- Tier 3 was "All Documents" + the selected company's name in the frames; it is now the Documents · Questions · Requests tabs. "All Documents" moved to a button beside the selected company's name.
+- Info Request from a firm tab opens the company's request builder, and Send returns to the company's Requests page (not the firm tab).

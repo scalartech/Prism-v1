@@ -15,13 +15,13 @@ The firm Documents layout with this company already selected: measurement-date f
 | upload | Documents — Upload Document modal | [14:4176](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-4176) | `#/companies/abc-co/documents?state=upload` |
 | page-menu | Documents — Page menu open | [14:4259](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-4259) | `#/companies/abc-co/documents?state=page-menu` |
 
-Components used: CompanyLayout (shell), TertiaryMenuItem, Checkbox, Heading, ProgressRing, Text, Button, ButtonIcon, ContextMenu, MenuItem, Input, TreeItem, FileRow, EmptyState, Modal (size l), Dropzone, and from firm Documents (`p05-documents/parts.tsx`): DateBand, Viewer (DocumentViewerHeader, PageStepper, ZoomControl, Spinner), metaChips.
+Components used: CompanyLayout (shell), TertiaryMenuItem, Checkbox, Heading, ProgressBar, Text, Button, ButtonIcon, ContextMenu, MenuItem, Input, TreeItem, FileRow, EmptyState, Modal (size l), Dropzone, and from firm Documents (`p05-documents/parts.tsx`): DateBand, Viewer (DocumentViewerHeader, PageStepper, ZoomControl, Spinner), metaChips.
 
 Behaviour & rules:
 - Tier 3 end: Select all documents, Filter, Info Request. Uploads go straight into a measurement-date folder (its Upload Document); the heading has no upload button. "Search documents" (body) filters the tree by name and opens matching folders.
 - Opening a file shows "Preparing PDF preview…" then the page; close returns to the full-width tree.
 - Upload: Dropzone (CSV, DOCX, JPG, PDF, XLSX, ZIP · 250 MB max); Done disabled until a file is chosen; uploaded files go to the top of the measurement date with today's date and the signed-in user.
-- The heading's ring and "Requests: N sent, N resolved, N pending" read the same list as Requests.
+- The heading's slim progress bar (with its done/total fraction) and "Requests: N sent, N resolved, N pending" read the same list as Requests.
 - Page ⋮ → "Edit Company Questions and Documents" (the request builder) · "Track pending responses" (Requests).
 
 ### Requests — `/companies/:companyId/documents/requests` (prototype states)
@@ -33,10 +33,10 @@ The Unified Request Portal list as the signed-in sender sees it: questions and d
 | pending | Requests — pending responses only | proto:company-requests:2 | `#/companies/abc-co/documents/requests?state=pending` |
 | empty | Requests — nothing sent yet | proto:company-requests:3 | `#/companies/abc-co/documents/requests?state=empty` |
 
-Components used: CompanyLayout, RequestsHeading (ProgressRing, Button), FilterDropdown + SelectMenu, Checkbox, Button + ContextMenu (Expand, Bulk actions), SubmenuItem, Overline, Alert, Banner, EmptyState, Toast, and from the portal prototype: RequestRow, usePortalStore, DueDateDialog, DelegateDialog.
+Components used: CompanyLayout, RequestsHeading (ProgressBar, Button), FilterDropdown + SelectMenu, Checkbox, Button + ContextMenu (Expand, Bulk actions), SubmenuItem, Overline, Alert, Banner, EmptyState, Toast, and from the portal prototype: RequestRow, usePortalStore, DueDateDialog, DelegateDialog.
 
 Behaviour & rules:
-- Every count (ring, heading text, category tallies, "N pending" per recipient) derives from one `requests` array; follow-ups are never counted on their own (portal rule P1.3).
+- Every count (progress bar, heading text, category tallies, "N pending" per recipient) derives from one `requests` array; follow-ups are never counted on their own (portal rule P1.3).
 - **Sent to** lists each recipient with their pending count; picking one filters the list to the requests sent to them. Combined with Status = Pending this is the "who still owes us what" view.
 - Tier 3 end: Expand, Status, Select All, Bulk actions, **Due date** (a Button: the sender changes it; the recipient sees it straight away), Info Request. Bulk actions act on selected ∩ visible ∩ eligible requests.
 - After New Info Request sends, a positive Banner confirms how many requests went to whom.
@@ -69,7 +69,7 @@ The questions sent in information requests (written answers, Yes / No, dates, mu
 Behaviour & rules: the heading counts questions sent / answered / pending from the request list. With none sent, the frame's empty state and Info Request. Rows have no selection checkbox here (RequestRow without `onSelect`).
 
 ## Cross-platform links
-- In: company Secondary Menu → Documents; Workspace drawer on Waterfalls (04) and company Waterfall (09); firm Documents (05) empty viewer; Firm Valuations → New Info Request.
+- In: company Secondary Menu → Documents; Firm Valuations › Process Management pills (→ Requests, Pending / → Questions); firm Documents › Requests and Questions show the same lists; Workspace drawer on Waterfalls (04) and company Waterfall (09); firm Documents (05) empty viewer; Firm Valuations → New Info Request.
 - Out: Documents ↔ Questions ↔ Requests (Tier 3); Info Request → Information Request → Requests; Preview recipient page → Unified Request Portal prototype.
 
 ## Domain rules

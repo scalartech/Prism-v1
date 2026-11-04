@@ -18,6 +18,13 @@ export const routes = {
   valuations: '/valuations',
   waterfalls: '/waterfalls',
   documents: '/documents',
+  /** Firm Documents' Tier 3: Documents · Questions · Requests. A company id selects it in the left column. */
+  firmDocuments: {
+    questions: '/documents/questions',
+    requests: '/documents/requests',
+    companyQuestions: (companyId: string) => `/documents/questions/${companyId}`,
+    companyRequests: (companyId: string) => `/documents/requests/${companyId}`,
+  },
   reports: '/reports',
   company: {
     summary: c('summary'),

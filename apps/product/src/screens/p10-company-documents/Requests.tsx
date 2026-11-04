@@ -7,6 +7,7 @@
  *
  * Tier 3: Documents · Questions · Requests, then Expand, Status, Select All and
  * Bulk actions, the due date and Info Request. The page heading carries progress.
+ * The body is `useRequestsWorkspace`, shared with the firm Documents › Requests tab.
  *
  * Prototype (proto:company-requests): no Figma frames yet. Data lives in this browser.
  */
@@ -16,7 +17,7 @@ import {
   SelectMenu, SelectMenuOption, SubmenuItem, Text, Toast, ToastViewport, color, elevation, icons, radius, space, zIndex,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
-import { companyById } from '../../data/fixtures.js';
+import { companyById, type Company } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
 import { byNumber, isResolved, matchesStatus, type RequestStatus, type StatusFilter } from '../prototypes/request-portal/model.js';
 import { DelegateDialog, DueDateDialog } from '../prototypes/request-portal/PortalModals.js';
@@ -38,11 +39,31 @@ const fmt = (iso: string) => { const [y, m, d] = iso.split('-'); return `${m}/${
 
 interface ToastItem { id: number; tone: 'positive' | 'negative' | 'info'; text: string; action?: { label: string; onClick: () => void } }
 
-export function Requests({ state, params }: ScreenProps) {
-  const company = companyById(params.companyId);
-  const seed = useMemo(() => requestsSeed(state), [state]);
+export interface RequestsWorkspace {
+  company: Company;
+  /** Tier 3 tools: Expand, Status, Select All, Bulk actions, due date. */
+  tools: ReactNode;
+  heading: ReactNode;
+  content: ReactNode;
+  overlay: ReactNode;
+}
+
+/**
+ * One company's request list and everything that acts on it. Company ›
+ * Documents › Requests and the firm Documents › Requests tab both render it,
+ * each in its own chrome. Switching company keeps the hook mounted and resets
+ * filters, selection and the sender's notes to that company's.
+ */
+export function useRequestsWorkspace(companyId: string | undefined, state: string, title = 'Requests'): RequestsWorkspace {
+  const company = companyById(companyId);
+  const seed = useMemo(() => requestsSeed(company.id, state), [company.id, state]);
   const store = usePortalStore(requestsKey(company.id, state), seed);
-  const [meta, setMeta] = useState(() => loadMeta(company.id, state));
+  const metaKey = `${company.id}.${state}`;
+  const [metaState, setMetaState] = useState(() => ({ key: metaKey, meta: loadMeta(company.id, state) }));
+  const fresh = metaState.key !== metaKey ? { key: metaKey, meta: loadMeta(company.id, state) } : null;
+  if (fresh) setMetaState(fresh);
+  const meta = (fresh ?? metaState).meta;
+  const setMeta = (m: typeof meta) => setMetaState({ key: metaKey, meta: m });
   const [category, setCategory] = useState<string>('all');
   const [recipient, setRecipient] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(state === 'pending' ? 'pending' : 'all');
@@ -57,7 +78,12 @@ export function Requests({ state, params }: ScreenProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [sentNote, setSentNote] = useState<string | null>(null);
 
-  // The confirmation New Info Request leaves behind, shown once.
+  // Another company's list starts unfiltered, with nothing selected or open.
+  useEffect(() => {
+    setCategory('all'); setRecipient('all'); setSelected(new Set()); setExpanded(new Set()); setIntroOpen(true);
+  }, [company.id]);
+
+  // The confirmation the request builder leaves behind, shown once.
   useEffect(() => {
     try {
       const note = window.sessionStorage.getItem(SENT_NOTE_KEY);
@@ -201,7 +227,6 @@ export function Requests({ state, params }: ScreenProps) {
           Due {fmt(store.dueDate)}
         </Button>
       )}
-      <InfoRequestButton companyId={company.id} />
     </>
   );
 
@@ -303,48 +328,43 @@ export function Requests({ state, params }: ScreenProps) {
     </ul>
   );
 
-  return (
-    <CompanyLayout
-      company={company}
-      section="documents"
-      date={company.asOf}
-      headerEnd={<CompanyActionsButton />}
-      subNav={<DocumentsSubNav companyId={company.id} current="requests" />}
-      subNavEnd={tools}
-      dock={false}
-      overlay={
-        <>
-          <ToastViewport aria-label="Notifications">
-            {toasts.map((t) => (
-              <Toast key={t.id} tone={t.tone} onDismiss={() => dropToast(t.id)}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>
-                  {t.text}
-                  {t.action && <Button variant="tertiary" size="xs" onClick={() => { t.action!.onClick(); dropToast(t.id); }}>{t.action.label}</Button>}
-                </span>
-              </Toast>
-            ))}
-          </ToastViewport>
-          <DueDateDialog
-            open={dialog === 'due-date'}
-            onClose={() => setDialog(null)}
-            dueDate={store.dueDate}
-            onSave={(iso) => { store.setDueDate(iso); notify('positive', `Due date changed to ${fmt(iso)}.`); }}
-          />
-          <DelegateDialog
-            open={dialog === 'delegate'}
-            onClose={() => setDialog(null)}
-            count={delegateIds.length}
-            onSubmit={async (email) => { await store.delegate(delegateIds, email); notify('positive', `Delegated to ${email}.`); setSelected(new Set()); }}
-          />
-        </>
-      }
-    >
-      <RequestsHeading
-        companyId={company.id}
-        title="Requests"
-        counts={{ done: resolvedCount, total, label: 'Information requests resolved', text: requestsText(counts) }}
+  const overlay = (
+    <>
+      <ToastViewport aria-label="Notifications">
+        {toasts.map((t) => (
+          <Toast key={t.id} tone={t.tone} onDismiss={() => dropToast(t.id)}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>
+              {t.text}
+              {t.action && <Button variant="tertiary" size="xs" onClick={() => { t.action!.onClick(); dropToast(t.id); }}>{t.action.label}</Button>}
+            </span>
+          </Toast>
+        ))}
+      </ToastViewport>
+      <DueDateDialog
+        open={dialog === 'due-date'}
+        onClose={() => setDialog(null)}
+        dueDate={store.dueDate}
+        onSave={(iso) => { store.setDueDate(iso); notify('positive', `Due date changed to ${fmt(iso)}.`); }}
       />
+      <DelegateDialog
+        open={dialog === 'delegate'}
+        onClose={() => setDialog(null)}
+        count={delegateIds.length}
+        onSubmit={async (email) => { await store.delegate(delegateIds, email); notify('positive', `Delegated to ${email}.`); setSelected(new Set()); }}
+      />
+    </>
+  );
 
+  const heading = (
+    <RequestsHeading
+      companyId={company.id}
+      title={title}
+      counts={{ done: resolvedCount, total, label: 'Information requests resolved', text: requestsText(counts) }}
+    />
+  );
+
+  const content = (
+    <>
       {sentNote && (
         <Banner tone="positive" title="Information request sent" onDismiss={() => setSentNote(null)}>{sentNote}</Banner>
       )}
@@ -361,6 +381,27 @@ export function Requests({ state, params }: ScreenProps) {
           {list}
         </section>
       </div>
+    </>
+  );
+
+  return { company, tools, heading, content, overlay };
+}
+
+export function Requests({ state, params }: ScreenProps) {
+  const w = useRequestsWorkspace(params.companyId, state);
+  return (
+    <CompanyLayout
+      company={w.company}
+      section="documents"
+      date={w.company.asOf}
+      headerEnd={<CompanyActionsButton />}
+      subNav={<DocumentsSubNav companyId={w.company.id} current="requests" />}
+      subNavEnd={<>{w.tools}<InfoRequestButton companyId={w.company.id} /></>}
+      dock={false}
+      overlay={w.overlay}
+    >
+      {w.heading}
+      {w.content}
     </CompanyLayout>
   );
 }

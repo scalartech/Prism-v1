@@ -47,6 +47,11 @@ export function peekRequests(key: string, seed: () => InformationRequest[]): Inf
   return load(key, seed).requests;
 }
 
+/** The stored due date, without mounting the list (firm Requests overview). */
+export function peekDueDate(key: string, seed: () => InformationRequest[]): string {
+  return load(key, seed).dueDate;
+}
+
 /** Add requests to a stored list without mounting it (Company · Documents › New Info Request sends them). */
 export function appendRequests(key: string, seed: () => InformationRequest[], add: InformationRequest[], dueDate?: string) {
   const d = load(key, seed);

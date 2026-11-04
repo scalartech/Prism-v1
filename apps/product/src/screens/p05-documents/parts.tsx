@@ -3,12 +3,92 @@
  * Company · Documents: the measurement-date band, file meta chips and the
  * document preview.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
-  Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, Heading, Icon, PageStepper, Spinner, Text,
-  ZoomControl, color, elevation, icons, radius, space,
+  Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FilterDropdown, Heading, Icon, Input,
+  PageStepper, ScrollHintPill, Spinner, TertiaryMenuItem, Text, ZoomControl, color, elevation, icons, radius, space,
 } from '@scalar/design-system';
-import type { DocFile } from './data.js';
+import { href } from '../../router.js';
+import { routes } from '../../routes.js';
+import { VISIBLE_COMPANIES, docCompanies, type DocCompany, type DocFile } from './data.js';
+
+/* --- firm Documents chrome: Tier 3 tabs and the All Companies column ------- */
+
+export type FirmDocsTab = 'documents' | 'questions' | 'requests';
+
+/**
+ * Firm Documents' Tier 3: Documents · Questions · Requests (the same three as
+ * Company › Documents). Questions and Requests keep the selected company.
+ */
+export function FirmDocsTabs({ current, companyId }: { current: FirmDocsTab; companyId?: string }) {
+  const f = routes.firmDocuments;
+  return (
+    <>
+      <TertiaryMenuItem current={current === 'documents'} menu={false} href={href(routes.documents)}>Documents</TertiaryMenuItem>
+      <TertiaryMenuItem current={current === 'questions'} menu={false} href={href(companyId ? f.companyQuestions(companyId) : f.questions)}>Questions</TertiaryMenuItem>
+      <TertiaryMenuItem current={current === 'requests'} menu={false} href={href(companyId ? f.companyRequests(companyId) : f.requests)}>Requests</TertiaryMenuItem>
+    </>
+  );
+}
+
+/** One company in the left list: name, fund tag and what the tab counts for it. */
+export function CompanyRow({ name, fund, end, selected, onClick }: {
+  name: string; fund?: string; end: ReactNode; selected: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: space.s, width: '100%',
+        padding: `${space.s} ${space.m}`, borderRadius: radius.xs, cursor: 'pointer', textAlign: 'left',
+        background: selected ? color.bg.brandSubtle : color.bg.surface,
+        border: `1px solid ${selected ? color.stroke.brand : color.stroke.control}`,
+      }}
+    >
+      <Text step="m" tone={selected ? 'brand' : 'primary'} truncate style={{ flex: 1 }}>{name}</Text>
+      {fund && <Chip styleVariant="default">{fund}</Chip>}
+      {end}
+    </button>
+  );
+}
+
+/** The All Companies column: find a company, pick it. `end` is the tab's count for each one. */
+export function CompanyColumn({ selectedId, onSelect, end }: {
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  end: (c: DocCompany) => ReactNode;
+}) {
+  const [query, setQuery] = useState('');
+  const shown = docCompanies(query);
+  return (
+    <section aria-label="All Companies" style={{ flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Heading level={2} step="m">All Companies</Heading>
+        <FilterDropdown>All funds</FilterDropdown>
+      </div>
+      <Input
+        aria-label="Find company"
+        placeholder="Find Company"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs, maxHeight: '70vh', overflow: 'auto', position: 'relative' }}>
+        {shown.map((c) => (
+          <CompanyRow key={c.id} name={c.name} fund={c.fund} end={end(c)} selected={c.id === selectedId} onClick={() => onSelect(c.id)} />
+        ))}
+        {shown.length > VISIBLE_COMPANIES && (
+          <div style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs }}>
+            <ScrollHintPill>{shown.length - VISIBLE_COMPANIES} companies</ScrollHintPill>
+          </div>
+        )}
+        {!shown.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
+      </div>
+    </section>
+  );
+}
 
 /* --- small composed pieces (no DS equivalent) ------------------------------ */
 

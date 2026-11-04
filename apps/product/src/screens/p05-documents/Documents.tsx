@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Badge, Button, ButtonIcon, Checkbox, Chip, ComboboxPanel, EmptyState, FileRow, FilterDropdown, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, TertiaryMenu, TertiaryMenuItem, Text, TreeItem, color, icons, radius, space,
+  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FileRow, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, TertiaryMenu, Text, TreeItem, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { href, navigate } from '../../router.js';
@@ -18,37 +18,14 @@ import { PageHeader } from '../../shell/PageHeader.js';
 import { ToolbarKebab } from '../../shell/Toolbar.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
 import {
-  VISIBLE_COMPANIES, allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
+  allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
   type DocFolder,
 } from './data.js';
-import { DateBand, Viewer, metaChips } from './parts.js';
+import { CompanyColumn, DateBand, FirmDocsTabs, Viewer, metaChips } from './parts.js';
 
 const PREVIEW_MS = 1200;
 /** The company drawn open in the frames (All Documents → 03/31/2025, and the company-selected states). */
 const FRAME_COMPANY = 'backside-blocks';
-
-/** One company in the left list: name, fund tag and document count. */
-function CompanyRow({ name, fund, count, selected, onClick }: {
-  name: string; fund?: string; count: number; selected: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: space.s, width: '100%',
-        padding: `${space.s} ${space.m}`, borderRadius: radius.xs, cursor: 'pointer', textAlign: 'left',
-        background: selected ? color.bg.brandSubtle : color.bg.surface,
-        border: `1px solid ${selected ? color.stroke.brand : color.stroke.control}`,
-      }}
-    >
-      <Text step="m" tone={selected ? 'brand' : 'primary'} truncate style={{ flex: 1 }}>{name}</Text>
-      {fund && <Chip styleVariant="default">{fund}</Chip>}
-      <Badge>{count}</Badge>
-    </button>
-  );
-}
 
 /* --- Add Folder modal ------------------------------------------------------ */
 
@@ -139,7 +116,6 @@ export function Documents({ state }: ScreenProps) {
   const [modalTarget, setModalTarget] = useState('');
   const [extraFolders, setExtraFolders] = useState<DocFolder[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState('');
   const timer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -150,7 +126,6 @@ export function Documents({ state }: ScreenProps) {
   const folders = [...subfoldersFor(treeCompany.name), ...extraFolders];
   const allFiles = allFilesFor(treeCompany.name);
   const file = allFiles.find((f) => f.id === fileId);
-  const shownCompanies = query ? docCompanies(query) : listed;
 
   const openFile = (id: string) => {
     if (!companyId) setCompanyId(FRAME_COMPANY);
@@ -262,43 +237,15 @@ export function Documents({ state }: ScreenProps) {
           </>
         }
       >
-        <TertiaryMenuItem current={!company} menu={false} onClick={() => { setCompanyId(undefined); setFileId(undefined); }}>All Documents</TertiaryMenuItem>
-        {company && <TertiaryMenuItem current menu={false}>{company.name}</TertiaryMenuItem>}
+        <FirmDocsTabs current="documents" companyId={company?.id} />
       </TertiaryMenu>
 
       <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'flex-start' }}>
-        {/* Companies */}
-        <section aria-label="All Companies" style={{ flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Heading level={2} step="m">All Companies</Heading>
-            <FilterDropdown>All funds</FilterDropdown>
-          </div>
-          <Input
-            aria-label="Find company"
-            placeholder="Find Company"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs, maxHeight: '70vh', overflow: 'auto', position: 'relative' }}>
-            {shownCompanies.map((c) => (
-              <CompanyRow
-                key={c.id}
-                name={c.name}
-                fund={c.fund}
-                count={c.count}
-                selected={c.id === companyId}
-                onClick={() => { setCompanyId(c.id); setFileId(undefined); setLoading(false); }}
-              />
-            ))}
-            {shownCompanies.length > VISIBLE_COMPANIES && (
-              <div style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs }}>
-                <ScrollHintPill>{shownCompanies.length - VISIBLE_COMPANIES} companies</ScrollHintPill>
-              </div>
-            )}
-            {!shownCompanies.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
-          </div>
-        </section>
+        <CompanyColumn
+          selectedId={companyId}
+          end={(c) => <Badge>{c.count}</Badge>}
+          onSelect={(id) => { setCompanyId(id); setFileId(undefined); setLoading(false); }}
+        />
 
         {!company ? (
           /* All Documents — every measurement date */
@@ -335,7 +282,13 @@ export function Documents({ state }: ScreenProps) {
           <>
             {/* One company's tree */}
             <section aria-label={`${company.name} documents`} style={{ flex: '0 0 24%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-              <Heading level={2} step="m">{company.name}</Heading>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.s }}>
+                <Heading level={2} step="m">{company.name}</Heading>
+                <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.ArrowBack /></Icon>}
+                  onClick={() => { setCompanyId(undefined); setFileId(undefined); }}>
+                  All Documents
+                </Button>
+              </div>
               {companyDates.map((d, i) => {
                 const open = expandedDates.has(d);
                 return (

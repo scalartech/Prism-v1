@@ -4,20 +4,51 @@
  * (same model, store and rows); this module adds what only the sender has:
  * who each request was sent to, and the introduction they wrote.
  *
+ * Each company's list starts consistent with Firm Valuations' Process
+ * Management column: a valuation in progress has the open document requests
+ * and questions that column was drawn with (`seedTasksOf`); every other
+ * company's request is fully resolved. From then on the column reads the live
+ * list (`openTasksOf`), so sending, answering or reopening a request shows there.
+ *
  * Prototype-only: everything lives in this browser's localStorage, like the portal.
  */
-import { CATEGORIES, INTRODUCTION, REQUEST_META, seedDueDate, seedFor } from '../prototypes/request-portal/fixtures.js';
+import { companyById } from '../../data/fixtures.js';
+import { seedTasksOf } from '../p03-valuations/data.js';
+import { CATEGORIES, FIXTURES, INTRODUCTION, REQUEST_META, seedDueDate } from '../prototypes/request-portal/fixtures.js';
 import {
   DOC_EXTENSIONS, isResolved, type InformationRequest, type ResponseType,
 } from '../prototypes/request-portal/model.js';
-import { appendRequests, peekRequests } from '../prototypes/request-portal/store.js';
+import { appendRequests, peekDueDate, peekRequests } from '../prototypes/request-portal/store.js';
 
 export { CATEGORIES };
 
-/** `empty` starts with nothing sent; every other state starts from the portal's mixed fixture. */
+/** `empty` starts with nothing sent; every other state starts from the company's seeded request. */
 const listOf = (state: string) => (state === 'empty' ? 'empty' : 'default');
-export const requestsKey = (companyId: string, state = 'default') => `company.${companyId}.${listOf(state)}`;
-export const requestsSeed = (state = 'default') => () => (listOf(state) === 'empty' ? [] : seedFor('default', 0));
+// v2: lists are seeded per company from its valuation status.
+export const requestsKey = (companyId: string, state = 'default') => `company.v2.${companyId}.${listOf(state)}`;
+
+const QUESTION_TYPES: ResponseType[] = ['text', 'choice', 'multiple_choice', 'date'];
+const FILE_TYPES: ResponseType[] = ['file', 'template_file'];
+const isQuestion = (r: Pick<InformationRequest, 'responseType'>) => QUESTION_TYPES.includes(r.responseType);
+
+/**
+ * A company's request as first sent: every request resolved, then — for a
+ * valuation in progress — the open documents and questions reopened, so the
+ * list and the Valuations column agree from the start.
+ */
+function seedRequests(companyId: string): InformationRequest[] {
+  const every = FIXTURES.standard['all-complete']!();
+  const open = seedTasksOf(companyById(companyId));
+  if (!open) return every;
+  const simple = (r: InformationRequest) => !r.parentId && !every.some((f) => f.parentId === r.id) && r.responseType !== 'multiple_choice';
+  const reopen = new Set([
+    ...every.filter((r) => simple(r) && FILE_TYPES.includes(r.responseType)).slice(0, open.documents).map((r) => r.id),
+    ...every.filter((r) => simple(r) && isQuestion(r)).slice(0, open.questions).map((r) => r.id),
+  ]);
+  return every.map((r) => (reopen.has(r.id) ? { ...r, status: 'pending', answer: undefined, selection: undefined, files: undefined } : r));
+}
+
+export const requestsSeed = (companyId: string, state = 'default') => () => (listOf(state) === 'empty' ? [] : seedRequests(companyId));
 
 /* ---- who each request went to ---- */
 
@@ -31,12 +62,16 @@ export interface SentBatch {
 
 interface Meta { batches: SentBatch[]; introduction: string[] }
 
-const META_KEY = (companyId: string, state: string) => `scalar.company-requests.v1.${companyId}.${listOf(state)}`;
+const META_KEY = (companyId: string, state: string) => `scalar.company-requests.v2.${companyId}.${listOf(state)}`;
 
-function seedMeta(state: string): Meta {
-  const ids = requestsSeed(state)().map((r) => r.id);
+/** Who the seeded request went to: ABC Co's contact on file, otherwise the company's finance inbox. */
+const contactFor = (companyId: string) =>
+  companyId === 'abc-co' ? REQUEST_META.respondent : `finance@${companyId.replace(/[^a-z0-9]/g, '')}.com`;
+
+function seedMeta(companyId: string, state: string): Meta {
+  const ids = requestsSeed(companyId, state)().map((r) => r.id);
   return {
-    batches: ids.length ? [{ id: 'seed', sentAt: '2026-10-27', recipients: [REQUEST_META.respondent], requestIds: ids }] : [],
+    batches: ids.length ? [{ id: 'seed', sentAt: '2026-10-27', recipients: [contactFor(companyId)], requestIds: ids }] : [],
     introduction: ids.length ? INTRODUCTION : [],
   };
 }
@@ -46,7 +81,7 @@ export function loadMeta(companyId: string, state = 'default'): Meta {
     const raw = window.localStorage.getItem(META_KEY(companyId, state));
     if (raw) return JSON.parse(raw) as Meta;
   } catch { /* storage blocked: start from the seed */ }
-  return seedMeta(state);
+  return seedMeta(companyId, state);
 }
 
 function saveMeta(companyId: string, state: string, meta: Meta) {
@@ -81,7 +116,7 @@ export interface DraftRequest {
  */
 export function sendInformationRequest(companyId: string, drafts: DraftRequest[], recipients: string[], dueDate: string, introduction: string[]) {
   const key = requestsKey(companyId);
-  const seed = requestsSeed();
+  const seed = requestsSeed(companyId);
   const existing = peekRequests(key, seed);
   const next = new Map<string, number>();
   const stamp = Date.now();
@@ -109,16 +144,23 @@ export function sendInformationRequest(companyId: string, drafts: DraftRequest[]
   return added.length;
 }
 
-/* ---- counts for the Documents / Questions / Requests heading ---- */
+/* ---- counts: the Documents / Questions / Requests heading, the firm lists and Valuations ---- */
 
-const QUESTION_TYPES: ResponseType[] = ['text', 'choice', 'multiple_choice', 'date'];
-
-export interface RequestCounts { total: number; resolved: number; pending: number; questions: number; questionsAnswered: number }
+export interface RequestCounts {
+  total: number; resolved: number; pending: number;
+  questions: number; questionsAnswered: number;
+  /** Open document requests (files and templates). */
+  documentsPending: number;
+  /** Due date, ISO; undefined when nothing was sent. */
+  dueDate?: string;
+}
 
 export function requestCounts(companyId: string, state = 'default'): RequestCounts {
-  const every = peekRequests(requestsKey(companyId, state), requestsSeed(state));
+  const key = requestsKey(companyId, state);
+  const seed = requestsSeed(companyId, state);
+  const every = peekRequests(key, seed);
   const all = every.filter((r) => !r.parentId);
-  const qs = all.filter((r) => QUESTION_TYPES.includes(r.responseType));
+  const qs = all.filter(isQuestion);
   const resolved = all.filter((r) => isResolved(r, every)).length;
   return {
     total: all.length,
@@ -126,7 +168,20 @@ export function requestCounts(companyId: string, state = 'default'): RequestCoun
     pending: all.length - resolved,
     questions: qs.length,
     questionsAnswered: qs.filter((r) => isResolved(r, every)).length,
+    documentsPending: all.filter((r) => !isQuestion(r) && !isResolved(r, every)).length,
+    dueDate: all.length ? peekDueDate(key, seed) : undefined,
   };
 }
+
+/** Firm Valuations › Process Management: what the company still owes, from its live request list. */
+export function openTasksOf(companyId: string): { documents: number; questions: number } | undefined {
+  const c = requestCounts(companyId);
+  const questions = c.questions - c.questionsAnswered;
+  return c.documentsPending || questions ? { documents: c.documentsPending, questions } : undefined;
+}
+
+/** Everyone a company's requests went to. */
+export const recipientsFor = (companyId: string, state = 'default') =>
+  [...new Set(loadMeta(companyId, state).batches.flatMap((b) => b.recipients))];
 
 export { seedDueDate };
