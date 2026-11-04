@@ -3,14 +3,14 @@
  * Company · Documents: the measurement-date band, file meta chips and the
  * document preview.
  */
-import { useState, type ReactNode } from 'react';
+import { Children, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FilterDropdown, Heading, Icon, Input,
   PageStepper, ScrollHintPill, Spinner, TertiaryMenuItem, Text, ZoomControl, color, elevation, icons, radius, space,
 } from '@scalar/design-system';
 import { href } from '../../router.js';
 import { routes } from '../../routes.js';
-import { VISIBLE_COMPANIES, docCompanies, type DocCompany, type DocFile } from './data.js';
+import { docCompanies, type DocCompany, type DocFile } from './data.js';
 
 /* --- firm Documents chrome: Tier 3 tabs and the All Companies column ------- */
 
@@ -63,7 +63,7 @@ export function CompanyColumn({ selectedId, onSelect, end }: {
   const [query, setQuery] = useState('');
   const shown = docCompanies(query);
   return (
-    <section aria-label="All Companies" style={{ flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+    <section aria-label="All Companies" style={{ ...columnPanel, overflow: 'hidden', flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Heading level={2} step="m">All Companies</Heading>
         <FilterDropdown>All funds</FilterDropdown>
@@ -75,18 +75,73 @@ export function CompanyColumn({ selectedId, onSelect, end }: {
         onChange={(e) => setQuery(e.target.value)}
         leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
       />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs, maxHeight: '70vh', overflow: 'auto', position: 'relative' }}>
+      <ScrollList noun={['company', 'companies']}>
         {shown.map((c) => (
           <CompanyRow key={c.id} name={c.name} fund={c.fund} end={end(c)} selected={c.id === selectedId} onClick={() => onSelect(c.id)} />
         ))}
-        {shown.length > VISIBLE_COMPANIES && (
-          <div style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs }}>
-            <ScrollHintPill>{shown.length - VISIBLE_COMPANIES} companies</ScrollHintPill>
-          </div>
-        )}
         {!shown.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
-      </div>
+      </ScrollList>
     </section>
+  );
+}
+
+/**
+ * Each column of the firm Documents body sits in its own container: a subtle
+ * fill so the white rows and cards inside read as content, a hairline border
+ * and rounded corners. Spread it into the column's style.
+ */
+export const columnPanel: CSSProperties = {
+  background: color.bg.subtle,
+  border: `1px solid ${color.stroke.divider}`,
+  borderRadius: radius.m,
+  padding: space.m,
+  // Columns fill the body's height (the body's flex row stretches them) and scroll inside.
+  minHeight: 0,
+  overflow: 'auto',
+};
+
+/**
+ * A column's list that takes the rest of the column's height and scrolls on
+ * its own. While rows are out of view below, the blue Scroll Hint Pill
+ * ("↓ 12 companies") counts them; a click scrolls down a page.
+ */
+export function ScrollList({ noun, children }: { noun: [one: string, other: string]; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [below, setBelow] = useState(0);
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    const edge = el.getBoundingClientRect().bottom;
+    const rows = Array.from(el.children).filter((c) => !c.hasAttribute('data-scroll-hint'));
+    setBelow(rows.filter((r) => r.getBoundingClientRect().bottom > edge + 1).length);
+  };
+  // Rows change with search and selection, so measure after every render (cheap; setState bails out when equal).
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      onScroll={measure}
+      style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: space.xs }}
+    >
+      {Children.toArray(children)}
+      {below > 0 && (
+        <div data-scroll-hint="" style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs, pointerEvents: 'none' }}>
+          <ScrollHintPill
+            style={{ pointerEvents: 'auto' }}
+            onClick={() => ref.current?.scrollBy({ top: ref.current.clientHeight * 0.8, behavior: 'smooth' })}
+          >
+            {below} {below === 1 ? noun[0] : noun[1]}
+          </ScrollHintPill>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -143,7 +198,7 @@ export function Viewer({ file, loading, onClose }: { file: DocFile; loading: boo
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(100);
   return (
-    <section aria-label="Document preview" style={{ display: 'flex', flexDirection: 'column', gap: space.s, flex: 1, minWidth: 0 }}>
+    <section aria-label="Document preview" style={{ ...columnPanel, display: 'flex', flexDirection: 'column', gap: space.s, flex: 1, minWidth: 0 }}>
       <DocumentViewerHeader
         fileName={file.name}
         meta={

@@ -71,6 +71,7 @@ Behaviour & rules: the heading counts questions sent / answered / pending from t
 ## Cross-platform links
 - In: company Secondary Menu → Documents; Firm Valuations › Process Management pills (→ Requests, Pending / → Questions); firm Documents › Requests and Questions show the same lists; Workspace drawer on Waterfalls (04) and company Waterfall (09); firm Documents (05) empty viewer; Firm Valuations → New Info Request.
 - Out: Documents ↔ Questions ↔ Requests (Tier 3); Info Request → Information Request → Requests; Preview recipient page → Unified Request Portal prototype.
+- Company switcher (Primary Menu › Companies): on Documents, Questions, Requests or the Info Request builder, picking another company opens the same page for that company instead of its Summary (`shell/overlays/CompaniesMenu.tsx`). Everywhere else it still opens Summary.
 
 ## Domain rules
 - Requests are the portal's contract (`prototypes/request-portal/model.ts`): wording is independent of response type, numbering comes from the data, N/A and "sent another way" resolve a request without implying a file arrived. See [prototype-request-portal](prototype-request-portal.md).

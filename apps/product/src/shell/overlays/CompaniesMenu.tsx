@@ -5,16 +5,23 @@
  *
  * A searchable Combobox Panel: type to filter, "Show N more companies" pages
  * the list, and "Add New Company" opens the Add Company modal on Portfolio
- * Home. Picking a company opens its Summary. Both menu keys ('companies',
+ * Home. Picking a company opens its Summary, except from a company's Documents
+ * tabs (Documents · Questions · Requests): there it opens the same tab for the
+ * new company, so the user can move between companies without leaving
+ * Documents. The Info Request builder stays too, opening a fresh request for
+ * the new company. Both menu keys ('companies',
  * 'companies-add') draw the same panel — both Figma frames carry the Add New
  * Company action; 'companies-add' is the Portfolio Home entry point.
  */
 import { useMemo, useState } from 'react';
 import { Button, ComboboxPanel, Icon, icons } from '@scalar/design-system';
-import { navigate } from '../../router.js';
+import { navigate, useLocation } from '../../router.js';
 import { routes } from '../../routes.js';
 import { db } from '../../data/db.js';
 import { MENU_PAGE } from './data.js';
+
+/** A company's Documents tabs and the Info Request builder: switching company keeps the page (`/companies/<id>/documents[/questions|/requests|/information-request]`). */
+const STAY_ON = /^\/companies\/[^/]+(\/documents(?:\/questions|\/requests|\/information-request)?)$/;
 
 const MENU_FIRST_PAGE = [
   'abc-co', 'backside-blocks', 'captable', 'cohesity', 'company-31',
@@ -26,6 +33,8 @@ import type { OverlayProps } from './index.js';
 export function CompaniesMenu({ company, onClose }: OverlayProps) {
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const { path } = useLocation();
+  const stay = STAY_ON.exec(path)?.[1];
 
   // Every match, ranked by the db (name-prefix first); the panel shows a page of them.
   const matches = useMemo(() => db.companies.search(query, db.companies.count), [query]);
@@ -51,7 +60,7 @@ export function CompaniesMenu({ company, onClose }: OverlayProps) {
         value={company?.id}
         onSelect={(id) => {
           onClose();
-          navigate(routes.company.summary(id));
+          navigate(stay ? `/companies/${id}${stay}` : routes.company.summary(id));
         }}
         showMore={hidden > 0 ? { label: `Show ${hidden} more companies`, onClick: () => setExpanded(true) } : undefined}
         footer={

@@ -31,7 +31,7 @@ import { useRequestsWorkspace } from '../p10-company-documents/Requests.js';
 import { InfoRequestButton } from '../p10-company-documents/shared.js';
 import { recipientsFor, requestCounts, type RequestCounts } from '../p10-company-documents/requestData.js';
 import { docCompanies, type DocCompany } from './data.js';
-import { CompanyColumn, CompanyRow, FirmDocsTabs, type FirmDocsTab } from './parts.js';
+import { CompanyColumn, CompanyRow, ScrollList, columnPanel, FirmDocsTabs, type FirmDocsTab } from './parts.js';
 
 const fmt = (iso?: string) => { if (!iso) return ABSENCE_LABEL['not-entered']; const [y, m, d] = iso.split('-'); return `${m}/${d}/${y}`; };
 
@@ -59,9 +59,11 @@ function FirmTabFrame({ tab, companyId, end, overlay, columnEnd, children }: {
       <TertiaryMenu end={end}>
         <FirmDocsTabs current={tab} companyId={companyId} />
       </TertiaryMenu>
-      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'flex-start' }}>
+      {/* Every column stretches to the body's height and scrolls inside. */}
+      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
         <CompanyColumn selectedId={companyId} onSelect={(id) => navigate(to(id))} end={columnEnd} />
-        <section style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
+        {/* A picked company's list is one column; the overview boxes its own two columns. */}
+        <section style={{ ...(companyId ? columnPanel : {}), flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
           {children}
         </section>
       </main>
@@ -101,7 +103,7 @@ function Overview({ tab, openId, setOpenId, live, below }: {
   const noun = questionsTab ? 'questions' : 'requests';
 
   const list = (
-    <section aria-labelledby="pending-companies" style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+    <section aria-labelledby="pending-companies" style={{ ...columnPanel, overflow: 'hidden', flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
       <div>
         <Heading level={2} step="m" id="pending-companies">{questionsTab ? 'Pending questions' : 'Pending requests'}</Heading>
         <Text step="s" tone="secondary">
@@ -118,7 +120,7 @@ function Overview({ tab, openId, setOpenId, live, below }: {
           icon={<Icon size="xl" tone="secondary"><icons.Inbox /></Icon>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>
+        <ScrollList noun={['company', 'companies']}>
           {rows.map(({ c, open }) => (
             <CompanyRow
               key={c.id}
@@ -128,7 +130,7 @@ function Overview({ tab, openId, setOpenId, live, below }: {
               end={<Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap' }}>{open} pending</Text>}
             />
           ))}
-        </div>
+        </ScrollList>
       )}
     </section>
   );
@@ -137,7 +139,7 @@ function Overview({ tab, openId, setOpenId, live, below }: {
     const { c, n, open } = picked;
     const answered = n.questionsAnswered;
     return (
-      <section aria-label={`${c.name} details`} style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
+      <section aria-label={`${c.name} details`} style={{ ...columnPanel, flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
         <Card
           title={c.name}
           headingLevel={2}
@@ -172,9 +174,17 @@ function Overview({ tab, openId, setOpenId, live, below }: {
   })();
 
   return (
-    <div style={{ display: 'flex', gap: space.l, alignItems: 'flex-start' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: space.l, alignItems: 'stretch' }}>
       {list}
-      {details}
+      {details || (
+        <section aria-label="Company details" style={{ ...columnPanel, flex: '1 1 0', minWidth: 0 }}>
+          <EmptyState
+            title="Pick a company"
+            body={`Choose a company from the list to see its ${noun} here.`}
+            icon={<Icon size="xl" tone="secondary"><icons.Domain /></Icon>}
+          />
+        </section>
+      )}
     </div>
   );
 }

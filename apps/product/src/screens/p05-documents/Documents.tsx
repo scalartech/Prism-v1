@@ -21,7 +21,7 @@ import {
   allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
   type DocFolder,
 } from './data.js';
-import { CompanyColumn, DateBand, FirmDocsTabs, Viewer, metaChips } from './parts.js';
+import { CompanyColumn, DateBand, columnPanel, FirmDocsTabs, Viewer, metaChips } from './parts.js';
 
 const PREVIEW_MS = 1200;
 /** The company drawn open in the frames (All Documents → 03/31/2025, and the company-selected states). */
@@ -240,7 +240,7 @@ export function Documents({ state }: ScreenProps) {
         <FirmDocsTabs current="documents" companyId={company?.id} />
       </TertiaryMenu>
 
-      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'flex-start' }}>
+      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
         <CompanyColumn
           selectedId={companyId}
           end={(c) => <Badge>{c.count}</Badge>}
@@ -249,7 +249,7 @@ export function Documents({ state }: ScreenProps) {
 
         {!company ? (
           /* All Documents — every measurement date */
-          <section aria-label="All Documents" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+          <section aria-label="All Documents" style={{ ...columnPanel, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
             <Heading level={2} step="m">All Documents</Heading>
             {measurementDates.map((m) => {
               const open = expandedDates.has(m.date);
@@ -281,7 +281,7 @@ export function Documents({ state }: ScreenProps) {
         ) : (
           <>
             {/* One company's tree */}
-            <section aria-label={`${company.name} documents`} style={{ flex: '0 0 24%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+            <section aria-label={`${company.name} documents`} style={{ ...columnPanel, flex: '0 0 24%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.s }}>
                 <Heading level={2} step="m">{company.name}</Heading>
                 <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.ArrowBack /></Icon>}
@@ -312,7 +312,7 @@ export function Documents({ state }: ScreenProps) {
             {file ? (
               <Viewer key={file.id} file={file} loading={loading} onClose={() => setFileId(undefined)} />
             ) : (
-              <section style={{ flex: 1 }}>
+              <section aria-label="Document preview" style={{ ...columnPanel, flex: 1, minWidth: 0 }}>
                 <EmptyState
                   title="Select a document to preview"
                   body={`Pick a file from ${company.name}’s folders to open it here.`}
