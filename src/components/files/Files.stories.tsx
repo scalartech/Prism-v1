@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
-  fileKindOf, FileTypeBadge, FileRow, TreeItem, TreeGroup, PageStepper, ZoomControl, DocumentViewerHeader, ScrollHintPill,
+  fileKindOf, FileTypeBadge, FileTypeIcon, FileRow, TreeItem, TreeGroup, PageStepper, ZoomControl, DocumentViewerHeader, ScrollHintPill,
 } from './index.js';
 import { Icon } from '../icon/Icon.js';
 import { Clock, User } from '../icon/glyphs.js';
@@ -30,6 +30,23 @@ const meta2 = [{ icon: <Icon size="xs" tone="inherit"><User /></Icon>, label: 'M
 
 export const Row: Story = { render: () => <FileRow name="Q3 board report.pdf" meta={meta2} onOpen={() => {}} /> };
 export const RowActions: Story = { render: () => <FileRow name="Q3 board report.pdf" meta={meta2} onOpen={() => {}} onDownload={() => {}} onMenu={() => {}} /> };
+/** One line per file with a type icon — dense document trees (Company › Documents). */
+export const RowInline: Story = {
+  render: () => (
+    <div>
+      {['Cap table.xlsx', 'Q3 board report.pdf', 'Org chart.png', 'Bylaws.docx', 'Archive.zip'].map((n) => (
+        <FileRow key={n} layout="inline" typeIndicator="icon" draggable name={n} meta={meta2} onCheckedChange={() => {}} onOpen={() => {}} />
+      ))}
+    </div>
+  ),
+};
+export const TypeIcons: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: 'var(--space-m)' }}>
+      {['a.pdf', 'a.docx', 'a.xlsx', 'a.png', 'a.txt', 'a.zip'].map((f) => <FileTypeIcon key={f} file={f} title={f} />)}
+    </div>
+  ),
+};
 export const RowSelectedFile: Story = { render: () => <FileRow selected name="Q3 board report.pdf" meta={meta2} onOpen={() => {}} /> };
 /** Dragging is pointer-only on its own; passing `onMove` turns the handle into a "Move" button. */
 export const RowDraggable: Story = { render: () => <FileRow draggable onMove={() => {}} name="Cap table.xlsx" meta={meta2} onOpen={() => {}} /> };

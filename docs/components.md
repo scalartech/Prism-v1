@@ -315,7 +315,7 @@ provenance and in-cell editing. See known gap 8.
 | Figma | Variants | React | File |
 |---|---|---|---|
 | File Type Badge | Type (7) | = `FileTypeBadge` (+ ＋`fileKindOf`) | `files/Files.tsx` |
-| File Row | State (3) | = `FileRow` | `files/Files.tsx` |
+| File Row | State (3) | = `FileRow` (+ ＋`layout="inline"`, ＋`typeIndicator="icon"` with ＋`FileTypeIcon`) | `files/Files.tsx` |
 | Tree Item | Type × Level × State (12) | = `TreeItem` | `files/Files.tsx` |
 | Page Stepper | — | = `PageStepper` | `files/Files.tsx` |
 | Zoom Control | — | = `ZoomControl` (Material `zoom_in` / `fit_screen`) | `files/Files.tsx` |

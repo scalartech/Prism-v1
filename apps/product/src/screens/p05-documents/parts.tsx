@@ -5,8 +5,9 @@
  */
 import { Children, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FilterDropdown, Heading, Icon, Input,
+  Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FileRow, FilterDropdown, Heading, Icon, Input,
   PageStepper, ScrollHintPill, Spinner, TertiaryMenuItem, Text, ZoomControl, color, elevation, icons, radius, space,
+  type FileRowProps,
 } from '@scalar/design-system';
 import { href } from '../../router.js';
 import { routes } from '../../routes.js';
@@ -188,6 +189,67 @@ export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder,
           icon={<Icon size="s" tone="inherit">{expanded ? <icons.KeyboardArrowUp /> : <icons.KeyboardArrowDown />}</Icon>}
         />
       </span>
+    </div>
+  );
+}
+
+/* --- document tree rows ---------------------------------------------------- */
+
+/**
+ * One document on one line: type icon and name on the left, uploader, date and
+ * linked area right-aligned (Files › Row Inline). Company and firm Documents
+ * both draw their trees with it.
+ */
+export function DocRow(props: FileRowProps) {
+  return <FileRow layout="inline" typeIndicator="icon" draggable {...props} />;
+}
+
+/**
+ * A subfolder in a document tree: checkbox, folder glyph, name and count, the
+ * collapse arrow at the right end. Plain like a document row, with no band —
+ * only measurement dates get the filled band (`DateBand`). Its checkbox selects
+ * every document in the folder.
+ */
+export function FolderRow({ name, count, expanded, onToggle, checked, indeterminate, onCheckedChange, indent = 0 }: {
+  name: string;
+  count?: number;
+  expanded: boolean;
+  onToggle: () => void;
+  checked: boolean;
+  indeterminate?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  /** Nesting depth, in steps of `space.l`. */
+  indent?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: space.s,
+        padding: `${space.xs} ${space.m}`, paddingLeft: indent ? `calc(${space.m} + ${indent} * ${space.l})` : space.m,
+        background: color.bg.surface, borderBottom: `1px solid ${color.stroke.subtle}`,
+      }}
+    >
+      <CheckboxItem
+        size="s"
+        aria-label={`Select every document in ${name}`}
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={(e) => onCheckedChange(e.target.checked)}
+      />
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: space.s, padding: 0, border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
+      >
+        <Icon size="s" tone="secondary"><icons.Folder /></Icon>
+        <Text as="span" step="m" truncate>{name}</Text>
+        {count !== undefined && <Text as="span" step="s" tone="tertiary">{count}</Text>}
+      </button>
+      <ButtonIcon
+        variant="tertiary" size="s" label={expanded ? `Collapse ${name}` : `Expand ${name}`} onClick={onToggle}
+        icon={<Icon size="s" tone="inherit">{expanded ? <icons.KeyboardArrowUp /> : <icons.KeyboardArrowDown />}</Icon>}
+      />
     </div>
   );
 }

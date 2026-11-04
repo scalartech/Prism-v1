@@ -5,19 +5,23 @@
  * three navigation tiers stay (product menu · company header · Documents /
  * Questions / Requests).
  *
+ * The tabs already name the page, so there is no title: request progress and
+ * the ⋮ menu sit in the company row, search in Tier 3. One line per document
+ * (type icon, name, details right-aligned); subfolders are plain rows.
+ *
  * Figma: 10 · Company · Documents & Requests → Documents List (3 frames); body
  * from 05 · Documents (Firm) → Company Documents.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Button, ButtonIcon, Checkbox, Dropzone, EmptyState, FileRow, Heading, Icon, Input, Modal, Text, TreeItem, icons, space,
+  Button, ButtonIcon, Checkbox, Dropzone, EmptyState, FileRow, Icon, Modal, Text, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { companyById, user } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
 import { companyDates, rootFiles, subfoldersFor, type DocFile } from '../p05-documents/data.js';
-import { DateBand, Viewer, metaChips } from '../p05-documents/parts.js';
-import { CompanyActionsButton, DocumentsSubNav, InfoRequestButton, RequestsHeading, requestsText } from './shared.js';
+import { DateBand, DocRow, FolderRow, Viewer, metaChips } from '../p05-documents/parts.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, TierSearch, requestsText } from './shared.js';
 import { requestCounts } from './requestData.js';
 
 const PREVIEW_MS = 1200;
@@ -90,11 +94,10 @@ export function DocumentList({ state, params }: ScreenProps) {
   };
 
   const fileRow = (f: DocFile, compact: boolean) => (
-    <FileRow
+    <DocRow
       key={f.id}
       name={f.name}
       meta={compact ? undefined : metaChips(f)}
-      draggable
       checked={checked.has(f.id)}
       onCheckedChange={check(f.id)}
       selected={f.id === fileId}
@@ -102,27 +105,29 @@ export function DocumentList({ state, params }: ScreenProps) {
     />
   );
 
-  /** Root files → subfolders, as a tree of rows. Compact (names only) while a preview is open. */
+  /** Root files → subfolders: one line per document, plain folder rows. Names only while a preview is open. */
   const tree = (compact: boolean): ReactNode => {
     const shownRoot = root.filter(matches);
     return (
-      <div role="tree" aria-label={`${company.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
+      <div role="group" aria-label={`${company.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
         {shownRoot.map((f) => fileRow(f, compact))}
         {folders.map((folder) => {
           const open = !collapsed.has(folder.id) || !!query;
           const shown = folder.files.filter(matches);
           if (query && !shown.length) return null;
+          const ids = folder.files.map((f) => f.id);
+          const some = ids.filter((id) => checked.has(id)).length;
           return (
             <div key={folder.id}>
-              <TreeItem
-                type="folder"
-                level={1}
-                expanded={open}
+              <FolderRow
+                name={folder.name}
                 count={folder.files.length || undefined}
+                expanded={open}
                 onToggle={() => setCollapsed((s) => toggle(s, folder.id))}
-              >
-                {folder.name}
-              </TreeItem>
+                checked={ids.length > 0 && some === ids.length}
+                indeterminate={some > 0 && some < ids.length}
+                onCheckedChange={(v) => setChecked((s) => { const n = new Set(s); ids.forEach((id) => (v ? n.add(id) : n.delete(id))); return n; })}
+              />
               {open && shown.map((f) => <div key={f.id} style={{ paddingLeft: space.xl }}>{fileRow(f, compact)}</div>)}
             </div>
           );
@@ -139,7 +144,13 @@ export function DocumentList({ state, params }: ScreenProps) {
       company={company}
       section="documents"
       date={company.asOf}
-      headerEnd={<CompanyActionsButton />}
+      headerEnd={
+        <CompanyDocsHeaderEnd
+          companyId={company.id}
+          menuOpen={state === 'page-menu'}
+          counts={{ done: counts.resolved, total: counts.total, label: 'Information requests resolved', text: requestsText(counts) }}
+        />
+      }
       subNav={<DocumentsSubNav companyId={company.id} current="documents" />}
       subNavEnd={
         <>
@@ -151,8 +162,8 @@ export function DocumentList({ state, params }: ScreenProps) {
           >
             Select all documents
           </Checkbox>
+          <TierSearch value={query} onChange={setQuery} label="Search documents" />
           <ButtonIcon variant="tertiary" size="xs" label="Filter documents" icon={<Icon size="s" tone="secondary"><icons.FilterList /></Icon>} />
-          <InfoRequestButton companyId={company.id} />
         </>
       }
       dock={false}
@@ -170,30 +181,11 @@ export function DocumentList({ state, params }: ScreenProps) {
         />
       }
     >
-      <RequestsHeading
-        companyId={company.id}
-        title="Documents"
-        menuOpen={state === 'page-menu'}
-        counts={{ done: counts.resolved, total: counts.total, label: 'Information requests resolved', text: requestsText(counts) }}
-      />
-
       <div style={{ display: 'flex', gap: space.l, alignItems: 'flex-start' }}>
         <section
           aria-label={`${company.name} measurement dates`}
           style={{ flex: file ? '0 0 32%' : 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-            <Heading level={2} step="m">All Documents</Heading>
-            <div style={{ flex: '0 1 40%', minWidth: 0 }}>
-              <Input
-                aria-label="Search documents"
-                placeholder="Search documents"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
-              />
-            </div>
-          </div>
           {dates.map((d, i) => {
             const open = expandedDates.has(d);
             return (

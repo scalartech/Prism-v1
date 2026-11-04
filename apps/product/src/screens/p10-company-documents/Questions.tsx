@@ -20,7 +20,7 @@ import { byNumber, isResolved, type ResponseType } from '../prototypes/request-p
 import { DelegateDialog } from '../prototypes/request-portal/PortalModals.js';
 import { RequestRow } from '../prototypes/request-portal/RequestRow.js';
 import { usePortalStore } from '../prototypes/request-portal/store.js';
-import { CompanyActionsButton, DocumentsSubNav, InfoRequestButton, RequestsHeading } from './shared.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, InfoRequestButton, RequestsHeading, type ProgressCounts } from './shared.js';
 import { requestsKey, requestsSeed } from './requestData.js';
 
 const QUESTION_TYPES: ResponseType[] = ['text', 'choice', 'multiple_choice', 'date'];
@@ -29,6 +29,8 @@ interface ToastItem { id: number; tone: 'positive' | 'negative' | 'info'; text: 
 
 export interface QuestionsWorkspace {
   company: Company; heading: ReactNode; content: ReactNode; overlay: ReactNode;
+  /** The questions progress — the company row shows it on Company › Questions. */
+  progress: ProgressCounts;
   /** Just the "Pending answer" group, answerable in place (firm Questions shows it under the company card). */
   pendingList: ReactNode;
   /** Live tallies from the store, so a card beside the list updates the moment an answer is saved. */
@@ -111,16 +113,11 @@ export function useQuestionsWorkspace(companyId: string | undefined, state: stri
     </>
   );
 
-  const heading = (
-    <RequestsHeading
-      companyId={company.id}
-      title={title}
-      counts={{
-        done: answered.length, total: questions.length, label: 'Questions answered',
-        text: `Questions: ${questions.length} sent, ${answered.length} answered, ${pending.length} pending`,
-      }}
-    />
-  );
+  const progress: ProgressCounts = {
+    done: answered.length, total: questions.length, label: 'Questions answered',
+    text: `Questions: ${questions.length} sent, ${answered.length} answered, ${pending.length} pending`,
+  };
+  const heading = <RequestsHeading companyId={company.id} title={title} counts={progress} />;
 
   const content = questions.length === 0 ? (
     <EmptyState
@@ -143,7 +140,7 @@ export function useQuestionsWorkspace(companyId: string | undefined, state: stri
 
   const pendingList = group('q-pending', 'Pending answer', pending, 'Every question has been answered.');
   const live = { sent: questions.length, answered: answered.length, pending: pending.length };
-  return { company, heading, content, overlay, pendingList, live };
+  return { company, heading, progress, content, overlay, pendingList, live };
 }
 
 export function Questions({ state, params }: ScreenProps) {
@@ -153,13 +150,12 @@ export function Questions({ state, params }: ScreenProps) {
       company={w.company}
       section="documents"
       date={w.company.asOf}
-      headerEnd={<CompanyActionsButton />}
+      headerEnd={<CompanyDocsHeaderEnd companyId={w.company.id} counts={w.progress} />}
       subNav={<DocumentsSubNav companyId={w.company.id} current="questions" />}
       subNavEnd={<InfoRequestButton companyId={w.company.id} />}
       dock={false}
       overlay={w.overlay}
     >
-      {w.heading}
       {w.content}
     </CompanyLayout>
   );

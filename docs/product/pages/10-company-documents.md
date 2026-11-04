@@ -2,7 +2,7 @@
 
 Where a company's files live, and where the analyst requests missing documents and answers from the company, sends them to specific people and tracks what is still pending. Used by valuation teams preparing a valuation and by admins tracking request progress.
 
-Every page here keeps the company's three navigation tiers: product menu (1) · company header with Documents selected (2) · **Documents · Questions · Requests** (3). The last item of Tier 3 on all three tabs is **Info Request** (primary, opens the request builder).
+Every page here keeps the company's three navigation tiers: product menu (1) · company header with Documents selected (2) · **Documents · Questions · Requests** (3). The tabs already name the page, so the pages have **no title**: the company row's right end carries the page's progress (slim `ProgressBar`, done/total, counts in words) and the ⋮ menu (`CompanyDocsHeaderEnd`). Questions and Requests end Tier 3 with **Info Request** (primary, opens the request builder); Documents doesn't (the builder is in the ⋮ menu).
 
 ## Screens
 
@@ -15,14 +15,15 @@ The firm Documents layout with this company already selected: measurement-date f
 | upload | Documents — Upload Document modal | [14:4176](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-4176) | `#/companies/abc-co/documents?state=upload` |
 | page-menu | Documents — Page menu open | [14:4259](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-4259) | `#/companies/abc-co/documents?state=page-menu` |
 
-Components used: CompanyLayout (shell), TertiaryMenuItem, Checkbox, Heading, ProgressBar, Text, Button, ButtonIcon, ContextMenu, MenuItem, Input, TreeItem, FileRow, EmptyState, Modal (size l), Dropzone, and from firm Documents (`p05-documents/parts.tsx`): DateBand, Viewer (DocumentViewerHeader, PageStepper, ZoomControl, Spinner), metaChips.
+Components used: CompanyLayout (shell), TertiaryMenuItem, Checkbox, CheckboxItem, ProgressBar, Text, Button, ButtonIcon, ContextMenu, MenuItem, Input, FileRow (`layout="inline"`, `typeIndicator="icon"` → FileTypeIcon), EmptyState, Modal (size l), Dropzone, and from firm Documents (`p05-documents/parts.tsx`): DateBand, DocRow, FolderRow, Viewer (DocumentViewerHeader, PageStepper, ZoomControl, Spinner), metaChips.
 
 Behaviour & rules:
-- Tier 3 end: Select all documents, Filter, Info Request. Uploads go straight into a measurement-date folder (its Upload Document); the heading has no upload button. "Search documents" (body) filters the tree by name and opens matching folders.
+- Tier 3 end: Select all documents, Search (icon; opens a field in the row, Escape clears and closes it — `TierSearch`), Filter. Search filters the tree by name and opens matching folders. Uploads go straight into a measurement-date folder (its Upload Document).
+- One line per document: type icon (`color.file.*`), name; uploader, date and linked area right-aligned. Subfolders are plain rows (checkbox selects every document in the folder, folder glyph, name, count, collapse arrow at the right) — only measurement dates get the filled band.
 - Opening a file shows "Preparing PDF preview…" then the page; close returns to the full-width tree.
 - Upload: Dropzone (CSV, DOCX, JPG, PDF, XLSX, ZIP · 250 MB max); Done disabled until a file is chosen; uploaded files go to the top of the measurement date with today's date and the signed-in user.
-- The heading's slim progress bar (with its done/total fraction) and "Requests: N sent, N resolved, N pending" read the same list as Requests.
-- Page ⋮ → "Edit Company Questions and Documents" (the request builder) · "Track pending responses" (Requests).
+- The company row's progress ("Requests: N sent, N resolved, N pending") reads the same list as Requests; on Questions it counts questions.
+- Company row ⋮ → "Edit Company Questions and Documents" (the request builder) · "Track pending responses" (Requests).
 
 ### Requests — `/companies/:companyId/documents/requests` (prototype states)
 The Unified Request Portal list as the signed-in sender sees it: questions and documents in one numbered list, categories on the left, the responses that came back inside each request, and what is still pending.
@@ -33,7 +34,7 @@ The Unified Request Portal list as the signed-in sender sees it: questions and d
 | pending | Requests — pending responses only | proto:company-requests:2 | `#/companies/abc-co/documents/requests?state=pending` |
 | empty | Requests — nothing sent yet | proto:company-requests:3 | `#/companies/abc-co/documents/requests?state=empty` |
 
-Components used: CompanyLayout, RequestsHeading (ProgressBar, Button), FilterDropdown + SelectMenu, Checkbox, Button + ContextMenu (Expand, Bulk actions), SubmenuItem, Overline, Alert, Banner, EmptyState, Toast, and from the portal prototype: RequestRow, usePortalStore, DueDateDialog, DelegateDialog.
+Components used: CompanyLayout, CompanyDocsHeaderEnd (ProgressBar, ContextMenu), FilterDropdown + SelectMenu, Checkbox, Button + ContextMenu (Expand, Bulk actions), SubmenuItem, Overline, Alert, Banner, EmptyState, Toast, and from the portal prototype: RequestRow, usePortalStore, DueDateDialog, DelegateDialog.
 
 Behaviour & rules:
 - Every count (progress bar, heading text, category tallies, "N pending" per recipient) derives from one `requests` array; follow-ups are never counted on their own (portal rule P1.3).
@@ -66,7 +67,7 @@ The questions sent in information requests (written answers, Yes / No, dates, mu
 | default | Questions — pending and answered | proto:company-questions:1 | `#/companies/abc-co/documents/questions` |
 | empty | Questions — Empty | [14:10616](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-10616) | `#/companies/abc-co/documents/questions?state=empty` |
 
-Behaviour & rules: the heading counts questions sent / answered / pending from the request list. With none sent, the frame's empty state and Info Request. Rows have no selection checkbox here (RequestRow without `onSelect`).
+Behaviour & rules: the company row's progress counts questions sent / answered / pending from the request list. With none sent, the frame's empty state and Info Request. Rows have no selection checkbox here (RequestRow without `onSelect`).
 
 ## Cross-platform links
 - In: company Secondary Menu → Documents; Firm Valuations › Process Management pills (→ Requests, Pending / → Questions); firm Documents › Requests and Questions show the same lists; Workspace drawer on Waterfalls (04) and company Waterfall (09); firm Documents (05) empty viewer; Firm Valuations → New Info Request.

@@ -6,7 +6,7 @@
  * dialogs, viewer = sender); the chrome is the company's three tiers.
  *
  * Tier 3: Documents · Questions · Requests, then Expand, Status, Select All and
- * Bulk actions, the due date and Info Request. The page heading carries progress.
+ * Bulk actions, the due date and Info Request. Progress sits in the company row.
  * The body is `useRequestsWorkspace`, shared with the firm Documents › Requests tab.
  *
  * Prototype (proto:company-requests): no Figma frames yet. Data lives in this browser.
@@ -23,7 +23,7 @@ import { byNumber, isResolved, matchesStatus, type RequestStatus, type StatusFil
 import { DelegateDialog, DueDateDialog } from '../prototypes/request-portal/PortalModals.js';
 import { RequestRow } from '../prototypes/request-portal/RequestRow.js';
 import { usePortalStore } from '../prototypes/request-portal/store.js';
-import { CompanyActionsButton, DocumentsSubNav, InfoRequestButton, RequestsHeading, requestsText } from './shared.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, InfoRequestButton, RequestsHeading, requestsText, type ProgressCounts } from './shared.js';
 import { CATEGORIES, loadMeta, recipientsOf, requestsKey, requestsSeed, resetCompanyRequests } from './requestData.js';
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -41,6 +41,8 @@ interface ToastItem { id: number; tone: 'positive' | 'negative' | 'info'; text: 
 
 export interface RequestsWorkspace {
   company: Company;
+  /** The request progress — the company row shows it on Company › Requests. */
+  progress: ProgressCounts;
   /** Tier 3 tools: Expand, Status, Select All, Bulk actions, due date. */
   tools: ReactNode;
   heading: ReactNode;
@@ -355,13 +357,8 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     </>
   );
 
-  const heading = (
-    <RequestsHeading
-      companyId={company.id}
-      title={title}
-      counts={{ done: resolvedCount, total, label: 'Information requests resolved', text: requestsText(counts) }}
-    />
-  );
+  const progress: ProgressCounts = { done: resolvedCount, total, label: 'Information requests resolved', text: requestsText(counts) };
+  const heading = <RequestsHeading companyId={company.id} title={title} counts={progress} />;
 
   const content = (
     <>
@@ -384,7 +381,7 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     </>
   );
 
-  return { company, tools, heading, content, overlay };
+  return { company, tools, heading, progress, content, overlay };
 }
 
 export function Requests({ state, params }: ScreenProps) {
@@ -394,13 +391,12 @@ export function Requests({ state, params }: ScreenProps) {
       company={w.company}
       section="documents"
       date={w.company.asOf}
-      headerEnd={<CompanyActionsButton />}
+      headerEnd={<CompanyDocsHeaderEnd companyId={w.company.id} counts={w.progress} />}
       subNav={<DocumentsSubNav companyId={w.company.id} current="requests" />}
       subNavEnd={<>{w.tools}<InfoRequestButton companyId={w.company.id} /></>}
       dock={false}
       overlay={w.overlay}
     >
-      {w.heading}
       {w.content}
     </CompanyLayout>
   );

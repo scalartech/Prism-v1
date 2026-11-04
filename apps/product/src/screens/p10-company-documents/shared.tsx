@@ -3,9 +3,9 @@
  * (Documents / Questions / Requests) and the request heading (title, progress
  * bar, request counts, page actions, "New Info Request" and the page ⋮ menu).
  */
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Button, ButtonIcon, ContextMenu, Heading, Icon, MenuItem, ProgressBar, TertiaryMenuItem, Text,
+  Button, ButtonIcon, ContextMenu, Heading, Icon, Input, MenuItem, ProgressBar, TertiaryMenuItem, Text,
   icons, space, zIndex,
 } from '@scalar/design-system';
 import { href, navigate } from '../../router.js';
@@ -45,60 +45,134 @@ export function CompanyActionsButton() {
   return <ButtonIcon variant="tertiary" size="xs" label="Company actions" icon={<Icon size="l" tone="primary"><icons.MoreVert /></Icon>} />;
 }
 
-export function RequestsHeading({ companyId, title, counts, actions, menuOpen: initialMenu = false }: {
-  companyId: string;
-  title: string;
+export interface ProgressCounts {
+  done: number;
+  total: number;
   /** e.g. "Requests: 27 sent, 5 resolved, 22 pending". */
-  counts: { done: number; total: number; text: string; label: string };
-  /** Page actions before the ⋮ menu. */
-  actions?: ReactNode;
+  text: string;
+  /** Accessible name of the bar. */
+  label: string;
+}
+
+/** A slim determinate bar (Feedback › ProgressBar) with its done/total fraction and the counts in words. */
+export function RequestsProgress({ counts, step = 'm' }: { counts: ProgressCounts; step?: 's' | 'm' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: space.s, minWidth: 0 }}>
+      <div style={{ flex: '0 0 auto', width: '8vw', display: 'flex' }}>
+        <ProgressBar value={counts.total ? (counts.done / counts.total) * 100 : 0} label={counts.label} />
+      </div>
+      <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+        {counts.done}/{counts.total}
+      </Text>
+      <Text as="span" step={step} tone="secondary" truncate>{counts.text}</Text>
+    </div>
+  );
+}
+
+/**
+ * Search that lives in Tier 3: a search icon that opens a small field in the
+ * same row. Escape clears and closes it; it also closes when left empty.
+ */
+export function TierSearch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const [open, setOpen] = useState(!!value);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (open) input.current?.focus(); }, [open]);
+  if (!open) {
+    return (
+      <ButtonIcon
+        variant="tertiary" size="xs" label={label} onClick={() => setOpen(true)}
+        icon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+    );
+  }
+  return (
+    <div style={{ width: '18vw' }}>
+      <Input
+        ref={input}
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape') { onChange(''); setOpen(false); } }}
+        onBlur={() => { if (!value) setOpen(false); }}
+        leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+    </div>
+  );
+}
+
+/** The ⋮ page menu: edit the company's questions and documents, or track pending responses. */
+export function PageActionsMenu({ companyId, label, menuOpen: initialMenu = false, trigger = 'page' }: {
+  companyId: string;
+  label: string;
   menuOpen?: boolean;
+  /** `company`: drawn like the company row's ⋮ (Company actions). `page`: the in-page ⋮. */
+  trigger?: 'company' | 'page';
 }) {
   const [menuOpen, setMenuOpen] = useState(initialMenu);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setMenuOpen(false), []);
   useDismiss(ref, menuOpen, close);
+  return (
+    <div style={{ position: 'relative', display: 'flex' }}>
+      <span data-popover-trigger="">
+        <ButtonIcon
+          variant="tertiary"
+          size={trigger === 'company' ? 'xs' : undefined}
+          label={label}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+          icon={trigger === 'company'
+            ? <Icon size="l" tone="primary"><icons.MoreVert /></Icon>
+            : <Icon size="s" tone="inherit"><icons.MoreVert /></Icon>}
+        />
+      </span>
+      {menuOpen && (
+        <div ref={ref} style={{ position: 'absolute', top: '100%', right: 0, zIndex: zIndex.overlay }}>
+          <ContextMenu label={label}>
+            <MenuItem icon={<Icon size="s" tone="inherit"><icons.EditNote /></Icon>} href={href(routes.company.informationRequest(companyId))}>
+              Edit Company Questions and Documents
+            </MenuItem>
+            <MenuItem icon={<Icon size="s" tone="inherit"><icons.Inbox /></Icon>} href={href(routes.company.requests(companyId))}>
+              Track pending responses
+            </MenuItem>
+          </ContextMenu>
+        </div>
+      )}
+    </div>
+  );
+}
 
+/**
+ * The company row's right end on Documents, Questions and Requests: the page's
+ * progress, then the ⋮ menu. The tabs already say which page this is, so the
+ * page has no title of its own.
+ */
+export function CompanyDocsHeaderEnd({ companyId, counts, menuOpen }: { companyId: string; counts: ProgressCounts; menuOpen?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: space.m, minWidth: 0 }}>
+      <RequestsProgress counts={counts} step="s" />
+      <PageActionsMenu companyId={companyId} label="Company actions" trigger="company" menuOpen={menuOpen} />
+    </div>
+  );
+}
+
+/** Title, progress and ⋮ menu — the firm Requests / Questions tabs, where the page names the picked company. */
+export function RequestsHeading({ companyId, title, counts, actions, menuOpen }: {
+  companyId: string;
+  title: string;
+  counts: ProgressCounts;
+  /** Page actions before the ⋮ menu. */
+  actions?: ReactNode;
+  menuOpen?: boolean;
+}) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: space.m }}>
       <Heading level={2} step="2xl">{title}</Heading>
-      {/* A slim determinate bar (Feedback › ProgressBar) with its fraction, so the count stays readable. */}
-      <div style={{ flex: '0 0 15%', display: 'flex', alignItems: 'center', gap: space.s }}>
-        <ProgressBar value={counts.total ? (counts.done / counts.total) * 100 : 0} label={counts.label} />
-        <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-          {counts.done}/{counts.total}
-        </Text>
-      </div>
-      <Text step="m" tone="secondary">{counts.text}</Text>
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.s, position: 'relative' }}>
+      <RequestsProgress counts={counts} />
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.s }}>
         {actions}
-        <span data-popover-trigger="">
-          <ButtonIcon
-            variant="tertiary"
-            label={`${title} page actions`}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((o) => !o)}
-            icon={<Icon size="s" tone="inherit"><icons.MoreVert /></Icon>}
-          />
-        </span>
-        {menuOpen && (
-          <div ref={ref} style={{ position: 'absolute', top: '100%', right: 0, zIndex: zIndex.overlay }}>
-            <ContextMenu label={`${title} page actions`}>
-              <MenuItem
-                icon={<Icon size="s" tone="inherit"><icons.EditNote /></Icon>}
-                href={href(routes.company.informationRequest(companyId))}
-              >
-                Edit Company Questions and Documents
-              </MenuItem>
-              <MenuItem
-                icon={<Icon size="s" tone="inherit"><icons.Inbox /></Icon>}
-                href={href(routes.company.requests(companyId))}
-              >
-                Track pending responses
-              </MenuItem>
-            </ContextMenu>
-          </div>
-        )}
+        <PageActionsMenu companyId={companyId} label={`${title} page actions`} menuOpen={menuOpen} />
       </div>
     </div>
   );

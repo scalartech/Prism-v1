@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { checkA11y } from '../../test/render.js';
 import {
-  FileTypeBadge, FileRow, TreeItem, PageStepper, ZoomControl, DocumentViewerHeader, ScrollHintPill,
+  FileTypeBadge, FileTypeIcon, FileRow, TreeItem, PageStepper, ZoomControl, DocumentViewerHeader, ScrollHintPill,
 } from './index.js';
 
 const clean = async (c: Element) => expect((await checkA11y(c)).violations).toEqual([]);
@@ -17,6 +17,15 @@ describe('FileTypeBadge', () => {
     expect(ref.current).toHaveClass('k');
     expect(ref.current).toHaveTextContent('XLSX');
     await clean(container);
+  });
+});
+
+describe('FileTypeIcon', () => {
+  it('forwards ref/className, picks the kind and is hidden from assistive tech', () => {
+    const ref = createRef<HTMLSpanElement>();
+    render(<FileTypeIcon ref={ref} file="r.pdf" className="k" />);
+    expect(ref.current).toHaveClass('k', 'scalar-file-icon--pdf');
+    expect(ref.current).toHaveAttribute('aria-hidden', 'true');
   });
 });
 
@@ -39,6 +48,14 @@ describe('FileRow', () => {
     await userEvent.click(box);
     expect(box).toBeChecked();
     expect(onCheckedChange).toHaveBeenCalledWith(true);
+  });
+
+  it('inline layout with a type icon: one line, icon instead of badge, no axe violations', async () => {
+    const { container } = render(<FileRow name="cap.xlsx" layout="inline" typeIndicator="icon" data-testid="row" meta={[{ label: 'Maria' }]} onOpen={() => {}} onCheckedChange={() => {}} />);
+    expect(screen.getByTestId('row')).toHaveClass('scalar-file-row--inline');
+    expect(container.querySelector('.scalar-file-icon--sheet')).toBeInTheDocument();
+    expect(container.querySelector('.scalar-file-badge')).not.toBeInTheDocument();
+    await clean(container);
   });
 
   it('marks the open file with aria-current', () => {

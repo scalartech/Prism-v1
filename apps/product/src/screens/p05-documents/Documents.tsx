@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FileRow, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, TertiaryMenu, Text, TreeItem, icons, space,
+  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, TertiaryMenu, Text, TreeItem, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { href, navigate } from '../../router.js';
@@ -21,7 +21,7 @@ import {
   allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
   type DocFolder,
 } from './data.js';
-import { CompanyColumn, DateBand, columnPanel, FirmDocsTabs, Viewer, metaChips } from './parts.js';
+import { CompanyColumn, DateBand, DocRow, FolderRow, columnPanel, FirmDocsTabs, Viewer, metaChips } from './parts.js';
 
 const PREVIEW_MS = 1200;
 /** The company drawn open in the frames (All Documents → 03/31/2025, and the company-selected states). */
@@ -139,46 +139,38 @@ export function Documents({ state }: ScreenProps) {
   const addFolder = (target: string) => { setModalTarget(target); setModalOpen(true); };
   const upload = () => navigate(routes.company.documents(companyId ?? FRAME_COMPANY), 'upload');
 
-  /** Company → root files → subfolders, as a tree of rows. */
+  /** Company → root files → subfolders: one line per document, plain folder rows (`DocRow`, `FolderRow`). */
+  const docRow = (f: (typeof allFiles)[number], compact: boolean) => (
+    <DocRow
+      key={f.id}
+      name={f.name}
+      meta={compact ? undefined : metaChips(f)}
+      checked={checked.has(f.id)}
+      onCheckedChange={check(f.id)}
+      selected={f.id === fileId}
+      onOpen={() => openFile(f.id)}
+    />
+  );
   const tree = (compact: boolean): ReactNode => (
-    <div role="tree" aria-label={`${treeCompany.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
-      {rootFiles.map((f) => (
-        <FileRow
-          key={f.id}
-          name={f.name}
-          meta={compact ? undefined : metaChips(f)}
-          draggable
-          checked={checked.has(f.id)}
-          onCheckedChange={check(f.id)}
-          selected={f.id === fileId}
-          onOpen={() => openFile(f.id)}
-        />
-      ))}
+    <div role="group" aria-label={`${treeCompany.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
+      {rootFiles.map((f) => docRow(f, compact))}
       {folders.map((folder) => {
         const open = !collapsed.has(folder.id);
+        const ids = folder.files.map((f) => f.id);
+        const some = ids.filter((id) => checked.has(id)).length;
         return (
           <div key={folder.id}>
-            <TreeItem
-              type="folder"
-              level={1}
-              expanded={open}
+            <FolderRow
+              name={folder.name}
               count={folder.files.length || undefined}
+              expanded={open}
               onToggle={() => setCollapsed((s) => toggle(s, folder.id))}
-            >
-              {folder.name}
-            </TreeItem>
+              checked={ids.length > 0 && some === ids.length}
+              indeterminate={some > 0 && some < ids.length}
+              onCheckedChange={(v) => setChecked((s) => { const n = new Set(s); ids.forEach((id) => (v ? n.add(id) : n.delete(id))); return n; })}
+            />
             {open && folder.files.map((f) => (
-              <div key={f.id} style={{ paddingLeft: space.xl }}>
-                <FileRow
-                  name={f.name}
-                  meta={compact ? undefined : metaChips(f)}
-                  draggable
-                  checked={checked.has(f.id)}
-                  onCheckedChange={check(f.id)}
-                  selected={f.id === fileId}
-                  onOpen={() => openFile(f.id)}
-                />
-              </div>
+              <div key={f.id} style={{ paddingLeft: space.xl }}>{docRow(f, compact)}</div>
             ))}
           </div>
         );

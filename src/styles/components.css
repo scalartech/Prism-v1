@@ -2734,6 +2734,18 @@ button.scalar-task-pill:focus-visible { outline: 2px solid var(--color-stroke-fo
 .scalar-file-row__meta { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 .scalar-file-row__chip { display: inline-flex; align-items: center; gap: var(--space-2xs); padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-xs); background: var(--color-bg-subtle); color: var(--color-text-secondary); font-size: var(--font-size-text-s); line-height: var(--line-height-text-s); }
 .scalar-file-row__main:focus-visible { outline: 2px solid var(--color-stroke-focus); }
+/* Inline: one line per file — name left, meta chips right-aligned (they drop first when space runs out). */
+.scalar-file-row--inline { padding-block: var(--space-xs); }
+.scalar-file-row--inline .scalar-file-row__main { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-m); }
+.scalar-file-row--inline .scalar-file-row__name { flex: 0 1 auto; font-weight: var(--font-weight-regular); }
+.scalar-file-row--inline .scalar-file-row__meta { flex: 0 0 auto; flex-wrap: nowrap; }
+.scalar-file-icon { display: inline-flex; flex: none; }
+.scalar-file-icon--pdf     { color: var(--color-file-pdf-text); }
+.scalar-file-icon--word    { color: var(--color-file-word-text); }
+.scalar-file-icon--sheet   { color: var(--color-file-sheet-text); }
+.scalar-file-icon--image   { color: var(--color-file-image-text); }
+.scalar-file-icon--text    { color: var(--color-file-text-text); }
+.scalar-file-icon--generic { color: var(--color-file-generic-text); }
 
 .scalar-tree-item { display: flex; align-items: center; gap: var(--space-xs); min-height: var(--size-row-compact); padding: var(--space-xs) var(--space-s); border-radius: var(--radius-xs); font-family: var(--font-family-default); }
 .scalar-tree-item { cursor: pointer; }
