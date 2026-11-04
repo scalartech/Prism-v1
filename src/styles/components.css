@@ -514,7 +514,8 @@ select.scalar-field__control { appearance: none; -webkit-appearance: none; curso
   border-color: var(--color-bg-brand);
 }
 .scalar-choice-input:checked + .scalar-radio-box { border-color: var(--color-bg-brand); border-width: 2px; }
-.scalar-radio-box__dot { width: 50%; height: 50%; border-radius: var(--radius-full); background: var(--color-bg-brand); }
+.scalar-radio-box__dot { width: 50%; height: 50%; border-radius: var(--radius-full); }
+.scalar-choice-input:checked + .scalar-radio-box .scalar-radio-box__dot { background: var(--color-bg-brand); }
 .scalar-choice-input[data-tone='negative'] + .scalar-choice { border-color: var(--color-stroke-negative); }
 .scalar-choice-input:disabled + .scalar-choice {
   background: var(--color-bg-disabled);
@@ -523,7 +524,7 @@ select.scalar-field__control { appearance: none; -webkit-appearance: none; curso
   cursor: not-allowed;
 }
 .scalar-choice-input:disabled:checked + .scalar-checkbox-box { background: var(--color-bg-disabled); }
-.scalar-choice-input:disabled + .scalar-radio-box .scalar-radio-box__dot { background: var(--color-icon-disabled); }
+.scalar-choice-input:disabled:checked + .scalar-radio-box .scalar-radio-box__dot { background: var(--color-icon-disabled); }
 
 /* The label is part of the target — clicking it toggles the control. */
 .scalar-choice-field {
@@ -750,7 +751,7 @@ button.scalar-breadcrumb-item { background: none; border: 0; padding: 0; cursor:
 .scalar-alert--warning  { --alert-bg: var(--color-bg-warning-subtle);  --alert-line: var(--color-stroke-warning);  --alert-icon: var(--color-icon-warning); }
 .scalar-alert--negative { --alert-bg: var(--color-bg-negative-subtle); --alert-line: var(--color-stroke-negative); --alert-icon: var(--color-icon-negative); }
 .scalar-alert__icon { color: var(--alert-icon); flex: none; }
-.scalar-alert__body { display: flex; flex-direction: column; gap: var(--space-2xs); min-width: 0; }
+.scalar-alert__body { display: flex; flex-direction: column; gap: var(--space-2xs); flex: 1; min-width: 0; }
 
 /* --- Toast ----------------------------------------------------------------- */
 .scalar-toast {

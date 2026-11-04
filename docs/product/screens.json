@@ -763,15 +763,53 @@
     "title": "Questions",
     "figmaPage": "10 · Company · Documents & Requests",
     "route": "/companies/:companyId/documents/questions",
-    "summary": "Read the answers to questions sent in information requests.",
+    "summary": "See which questions sent in information requests are still waiting for an answer, and read the answers that came back.",
     "component": "Questions",
     "states": [
+      {
+        "key": "default",
+        "label": "Questions — pending and answered",
+        "figmaNode": "proto:company-questions:1",
+        "section": "Questions",
+        "figmaUrl": null
+      },
       {
         "key": "empty",
         "label": "Questions — Empty",
         "figmaNode": "14:10616",
         "section": "Questions",
         "figmaUrl": "https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-10616"
+      }
+    ]
+  },
+  {
+    "id": "company.documents.requests",
+    "title": "Requests",
+    "figmaPage": "10 · Company · Documents & Requests",
+    "route": "/companies/:companyId/documents/requests",
+    "summary": "Track the information requests sent to the company: who they went to, what has been answered or uploaded, and what is still pending.",
+    "component": "Requests",
+    "states": [
+      {
+        "key": "default",
+        "label": "Requests — sent request, mixed responses",
+        "figmaNode": "proto:company-requests:1",
+        "section": "Requests",
+        "figmaUrl": null
+      },
+      {
+        "key": "pending",
+        "label": "Requests — pending responses only",
+        "figmaNode": "proto:company-requests:2",
+        "section": "Requests",
+        "figmaUrl": null
+      },
+      {
+        "key": "empty",
+        "label": "Requests — nothing sent yet",
+        "figmaNode": "proto:company-requests:3",
+        "section": "Requests",
+        "figmaUrl": null
       }
     ]
   },
@@ -1318,6 +1356,58 @@
         "key": "default",
         "label": "409A Report Composer — default",
         "figmaNode": "proto:report-composer:1",
+        "section": "Prototype",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "prototype.request-portal",
+    "title": "Unified Request Portal (prototype)",
+    "figmaPage": "Prototype · request-portal",
+    "route": "/prototypes/request-portal/:requestId",
+    "summary": "An external contact works through one numbered list of information requests — answers, dates, Yes/No, documents and completed templates — and sees truthfully what is resolved.",
+    "component": "RequestPortal",
+    "states": [
+      {
+        "key": "default",
+        "label": "Request Portal — mixed request types",
+        "figmaNode": "proto:request-portal:1",
+        "section": "Prototype",
+        "figmaUrl": null
+      },
+      {
+        "key": "questions-only",
+        "label": "Request Portal — questions only",
+        "figmaNode": "proto:request-portal:2",
+        "section": "Prototype",
+        "figmaUrl": null
+      },
+      {
+        "key": "documents-only",
+        "label": "Request Portal — documents only",
+        "figmaNode": "proto:request-portal:3",
+        "section": "Prototype",
+        "figmaUrl": null
+      },
+      {
+        "key": "templates-only",
+        "label": "Request Portal — templates only",
+        "figmaNode": "proto:request-portal:4",
+        "section": "Prototype",
+        "figmaUrl": null
+      },
+      {
+        "key": "all-complete",
+        "label": "Request Portal — every request resolved",
+        "figmaNode": "proto:request-portal:5",
+        "section": "Prototype",
+        "figmaUrl": null
+      },
+      {
+        "key": "empty",
+        "label": "Request Portal — no requests",
+        "figmaNode": "proto:request-portal:6",
         "section": "Prototype",
         "figmaUrl": null
       }

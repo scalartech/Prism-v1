@@ -57,3 +57,27 @@ export const responsibles = [
   { id: 'r7', name: 'Tenable Tester' },
   { id: 'r8', name: 'bayardo Martinez' },
 ];
+
+/**
+ * The same starting list, filed into the request categories with the response
+ * each one asks for (the request builder starts from it). Wording is unchanged.
+ */
+export const defaultDrafts: Array<{ title: string; categoryId: string; responseType: 'file' | 'text' | 'choice' | 'date' }> = [
+  { title: defaultDocumentRequests[5]!, categoryId: 'corporate', responseType: 'file' },
+  { title: defaultQuestions[8]!, categoryId: 'corporate', responseType: 'text' },
+  { title: defaultDocumentRequests[4]!, categoryId: 'capitalization', responseType: 'file' },
+  { title: defaultQuestions[3]!, categoryId: 'capitalization', responseType: 'choice' },
+  { title: defaultQuestions[5]!, categoryId: 'capitalization', responseType: 'text' },
+  { title: defaultQuestions[6]!, categoryId: 'capitalization', responseType: 'choice' },
+  { title: defaultQuestions[7]!, categoryId: 'capitalization', responseType: 'date' },
+  { title: defaultDocumentRequests[2]!, categoryId: 'financials', responseType: 'file' },
+  { title: defaultDocumentRequests[3]!, categoryId: 'projections', responseType: 'file' },
+  { title: defaultQuestions[2]!, categoryId: 'projections', responseType: 'text' },
+  { title: defaultDocumentRequests[1]!, categoryId: 'customers', responseType: 'file' },
+  { title: defaultDocumentRequests[6]!, categoryId: 'transactions', responseType: 'file' },
+  { title: defaultQuestions[0]!, categoryId: 'transactions', responseType: 'date' },
+  { title: defaultQuestions[1]!, categoryId: 'transactions', responseType: 'text' },
+  { title: defaultQuestions[4]!, categoryId: 'transactions', responseType: 'choice' },
+  { title: defaultDocumentRequests[0]!, categoryId: 'other', responseType: 'file' },
+  { title: defaultQuestions[9]!, categoryId: 'other', responseType: 'text' },
+];

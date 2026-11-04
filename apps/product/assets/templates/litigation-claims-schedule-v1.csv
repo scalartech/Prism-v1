@@ -1,0 +1,4 @@
+# Scalar template: Litigation & Claims Schedule · version 1.0 · 2026-09-15
+# List every pending, threatened or settled-in-the-last-24-months matter. Write "None" in the first row if there are none.
+Matter / Case Name,Counterparty,Jurisdiction / Venue,Type (Litigation / Regulatory / IP / Employment / Other),Date Filed or Threatened,Status (Pending / Threatened / Settled / Dismissed),Amount Claimed (USD),Estimated Exposure (USD),Accrued in Financials (Y/N),Insurance Coverage (Y/N),Counsel,Notes
+Example: Doe v. Company,John Doe,N.D. Cal.,Employment,02/10/2026,Pending,250000,40000,Y,Y,Smith & Lee LLP,

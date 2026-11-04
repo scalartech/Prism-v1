@@ -1,0 +1,4 @@
+# Scalar template: Customer Concentration Schedule · version 1.2 · 2026-09-15
+# Top 20 customers by trailing-12-month (TTM) revenue as of the Report Date. Customer names may be anonymised (Customer A, B…) if consistent across periods.
+Customer,Segment / Industry,Contract Type (Subscription / Usage / One-time),TTM Revenue (USD),% of Total TTM Revenue,Prior-Year TTM Revenue (USD),Contract Start Date,Contract End / Renewal Date,Auto-renew (Y/N),Notes
+Example: Customer A,Healthcare,Subscription,1840000,12.4%,1510000,01/15/2023,01/14/2027,Y,

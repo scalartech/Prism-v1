@@ -3,6 +3,7 @@ import { routes, companyPattern } from '../../routes.js';
 import { DocumentList } from './DocumentList.js';
 import { InformationRequest } from './InformationRequest.js';
 import { Questions } from './Questions.js';
+import { Requests } from './Requests.js';
 
 const figmaPage = '10 · Company · Documents & Requests';
 
@@ -38,10 +39,24 @@ export const screens: ScreenDef[] = [
     title: 'Questions',
     figmaPage,
     route: companyPattern(routes.company.questions),
-    summary: 'Read the answers to questions sent in information requests.',
+    summary: 'See which questions sent in information requests are still waiting for an answer, and read the answers that came back.',
     component: Questions,
     states: [
+      { key: 'default', label: 'Questions — pending and answered', figmaNode: 'proto:company-questions:1', section: 'Questions' },
       { key: 'empty', label: 'Questions — Empty', figmaNode: '14:10616', section: 'Questions' },
+    ],
+  },
+  {
+    id: 'company.documents.requests',
+    title: 'Requests',
+    figmaPage,
+    route: companyPattern(routes.company.requests),
+    summary: 'Track the information requests sent to the company: who they went to, what has been answered or uploaded, and what is still pending.',
+    component: Requests,
+    states: [
+      { key: 'default', label: 'Requests — sent request, mixed responses', figmaNode: 'proto:company-requests:1', section: 'Requests' },
+      { key: 'pending', label: 'Requests — pending responses only', figmaNode: 'proto:company-requests:2', section: 'Requests' },
+      { key: 'empty', label: 'Requests — nothing sent yet', figmaNode: 'proto:company-requests:3', section: 'Requests' },
     ],
   },
 ];

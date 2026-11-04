@@ -1,9 +1,9 @@
 /**
- * Chrome shared by Company · Documents and Company · Questions: the sub-nav
- * (Documents / Questions) and the request heading (title, progress ring,
- * request counts, "New Info Request" and the page ⋮ menu).
+ * Chrome shared by Company · Documents, Questions and Requests: the sub-nav
+ * (Documents / Questions / Requests) and the request heading (title, progress
+ * ring, request counts, page actions, "New Info Request" and the page ⋮ menu).
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import {
   Button, ButtonIcon, ContextMenu, Heading, Icon, MenuItem, ProgressRing, TertiaryMenuItem, Text,
   icons, space, zIndex,
@@ -12,12 +12,32 @@ import { href, navigate } from '../../router.js';
 import { routes } from '../../routes.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
 
-export function DocumentsSubNav({ companyId, current }: { companyId: string; current: 'documents' | 'questions' }) {
+export type DocumentsTab = 'documents' | 'questions' | 'requests';
+
+export function DocumentsSubNav({ companyId, current }: { companyId: string; current: DocumentsTab }) {
   return (
     <>
       <TertiaryMenuItem current={current === 'documents'} href={href(routes.company.documents(companyId))}>Documents</TertiaryMenuItem>
       <TertiaryMenuItem current={current === 'questions'} href={href(routes.company.questions(companyId))}>Questions</TertiaryMenuItem>
+      <TertiaryMenuItem current={current === 'requests'} href={href(routes.company.requests(companyId))}>Requests</TertiaryMenuItem>
     </>
+  );
+}
+
+/**
+ * Opens the request builder. The last item of Tier 3 on Documents, Questions
+ * and Requests. It starts a task, so it is an action, not a link.
+ */
+export function InfoRequestButton({ companyId }: { companyId: string }) {
+  return (
+    <Button
+      variant="primary"
+      size="xs"
+      leadingIcon={<Icon size="s" tone="inherit"><icons.Mail /></Icon>}
+      onClick={() => navigate(routes.company.informationRequest(companyId))}
+    >
+      Info Request
+    </Button>
   );
 }
 
@@ -25,11 +45,13 @@ export function CompanyActionsButton() {
   return <ButtonIcon variant="tertiary" size="xs" label="Company actions" icon={<Icon size="l" tone="primary"><icons.MoreVert /></Icon>} />;
 }
 
-export function RequestsHeading({ companyId, title, counts, menuOpen: initialMenu = false }: {
+export function RequestsHeading({ companyId, title, counts, actions, menuOpen: initialMenu = false }: {
   companyId: string;
   title: string;
-  /** e.g. "Requests: 0 sent, 0 uploaded, 0 pending". */
+  /** e.g. "Requests: 27 sent, 5 resolved, 22 pending". */
   counts: { done: number; total: number; text: string; label: string };
+  /** Page actions before the ⋮ menu. */
+  actions?: ReactNode;
   menuOpen?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(initialMenu);
@@ -43,14 +65,7 @@ export function RequestsHeading({ companyId, title, counts, menuOpen: initialMen
       <ProgressRing value={counts.done} max={counts.total} label={counts.label} />
       <Text step="m" tone="secondary">{counts.text}</Text>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.s, position: 'relative' }}>
-        {/* Starts a task (the request editor), so it is an action, not a link. */}
-        <Button
-          variant="primary"
-          leadingIcon={<Icon size="s" tone="inherit"><icons.Mail /></Icon>}
-          onClick={() => navigate(routes.company.informationRequest(companyId))}
-        >
-          New Info Request
-        </Button>
+        {actions}
         <span data-popover-trigger="">
           <ButtonIcon
             variant="tertiary"
@@ -69,6 +84,12 @@ export function RequestsHeading({ companyId, title, counts, menuOpen: initialMen
               >
                 Edit Company Questions and Documents
               </MenuItem>
+              <MenuItem
+                icon={<Icon size="s" tone="inherit"><icons.Inbox /></Icon>}
+                href={href(routes.company.requests(companyId))}
+              >
+                Track pending responses
+              </MenuItem>
             </ContextMenu>
           </div>
         )}
@@ -76,3 +97,7 @@ export function RequestsHeading({ companyId, title, counts, menuOpen: initialMen
     </div>
   );
 }
+
+/** "Requests: 27 sent, 5 resolved, 22 pending" — every count from the same list. */
+export const requestsText = (c: { total: number; resolved: number; pending: number }) =>
+  `Requests: ${c.total} sent, ${c.resolved} resolved, ${c.pending} pending`;
