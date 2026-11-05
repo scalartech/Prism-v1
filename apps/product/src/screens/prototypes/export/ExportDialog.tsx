@@ -4,12 +4,17 @@
  * DOC: formulas or hard-coded values, and a choice of pages. The dialog states
  * the context it exports — measurement, market date, versions, currency and
  * workflow status — so a draft is never mistaken for a published figure.
- * The prototype produces no file; it confirms what would be exported.
+ * The prototype produces no file; it confirms what would be exported and saves
+ * the export to the company's Exports tab ("Export saved · View in Exports").
+ * PDF report exports go to Final Report's versions instead.
  */
 import { useState } from 'react';
 import {
-  Banner, Button, Checkbox, Modal, Radio, RadioGroup, Text, space,
+  Banner, Button, Checkbox, Link, Modal, Radio, RadioGroup, Text, space,
 } from '@scalar/design-system';
+import { href } from '../../../router.js';
+import { routes } from '../../../routes.js';
+import { addExport, type ExportFile } from '../../p10-company-documents/exportsData.js';
 import type { Company } from '../../../data/fixtures.js';
 import { useValuationContext } from '../../../domain/context.js';
 import { isReported, usFromIso } from '../../../domain/model.js';
@@ -26,7 +31,7 @@ function ExportForm({ company }: { company: Company }) {
   const v = useValuationContext(company);
   const [mode, setMode] = useState('formulas');
   const [pages, setPages] = useState<string[]>(PAGES);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<ExportFile | null>(null);
   const status = v.valuation?.status ?? 'draft';
   const toggle = (p: string) => setPages((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
 
@@ -49,7 +54,7 @@ function ExportForm({ company }: { company: Company }) {
       footer={
         <>
           <Button variant="secondary" onClick={closeExport}>{done ? 'Close' : 'Cancel'}</Button>
-          {!done && <Button onClick={() => setDone(true)} disabled={!pages.length}>Export to Excel</Button>}
+          {!done && <Button onClick={() => setDone(addExport(company.id, usFromIso(v.measurement.date), pages))} disabled={!pages.length}>Export to Excel</Button>}
         </>
       }
     >
@@ -79,8 +84,9 @@ function ExportForm({ company }: { company: Company }) {
           </dl>
         </div>
         {done && (
-          <Banner tone="positive" title="Export ready">
-            {`${pages.length} page(s) of ${company.name}, ${mode === 'formulas' ? 'with formulas' : 'as hard-coded values'}. The prototype does not produce a file.`}
+          <Banner tone="positive" title="Export saved">
+            {`${done.fileName}: ${pages.length} page(s), ${mode === 'formulas' ? 'with formulas' : 'as hard-coded values'}. The prototype does not produce a file. `}
+            <Link href={href(routes.company.exports(company.id))} onClick={closeExport}>View in Exports</Link>
           </Banner>
         )}
       </div>

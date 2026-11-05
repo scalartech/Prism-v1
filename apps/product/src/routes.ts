@@ -18,12 +18,9 @@ export const routes = {
   valuations: '/valuations',
   waterfalls: '/waterfalls',
   documents: '/documents',
-  /** Firm Documents' Tier 3: Documents · Questions · Requests. A company id selects it in the left column. */
+  /** Firm Documents' row-2 tabs: All documents (`documents`) · Requests. A company opens in its own context. */
   firmDocuments: {
-    questions: '/documents/questions',
     requests: '/documents/requests',
-    companyQuestions: (companyId: string) => `/documents/questions/${companyId}`,
-    companyRequests: (companyId: string) => `/documents/requests/${companyId}`,
   },
   reports: '/reports',
   company: {
@@ -41,8 +38,9 @@ export const routes = {
     waterfall: c('waterfall'),
     documents: c('documents'),
     informationRequest: c('documents/information-request'),
-    questions: c('documents/questions'),
     requests: c('documents/requests'),
+    exports: c('documents/exports'),
+    finalReport: c('documents/final-report'),
     overview: c('overview'),
     dailyNavSettings: c('daily-nav-settings'),
   },
@@ -74,6 +72,26 @@ export const routes = {
   },
 } as const;
 
+
+/**
+ * Old links that moved. Questions folded into Requests at both levels, and a
+ * company picked on firm Requests opens in its own context, so these paths
+ * redirect instead of 404ing.
+ */
+const REDIRECTS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^\/documents\/questions$/, () => routes.firmDocuments.requests],
+  [/^\/documents\/(?:questions|requests)\/([^/]+)$/, (m) => routes.company.requests(m[1]!)],
+  [/^\/companies\/([^/]+)\/documents\/questions$/, (m) => routes.company.requests(m[1]!)],
+];
+
+/** Where an old path now lives, or undefined when it hasn't moved. */
+export function redirectOf(path: string): string | undefined {
+  for (const [re, to] of REDIRECTS) {
+    const m = path.match(re);
+    if (m) return to(m);
+  }
+  return undefined;
+}
 
 /** The pattern form of a company route, for ScreenDef.route. */
 export const companyPattern = (f: (id: string) => string) => f(':companyId');

@@ -6,7 +6,7 @@
  * A searchable Combobox Panel: type to filter, "Show N more companies" pages
  * the list, and "Add New Company" opens the Add Company modal on Portfolio
  * Home. Picking a company opens its Summary, except from a company's Documents
- * tabs (Documents · Questions · Requests): there it opens the same tab for the
+ * tabs (Documents · Requests · Exports · Final Report): there it opens the same tab for the
  * new company, so the user can move between companies without leaving
  * Documents. The Info Request builder stays too, opening a fresh request for
  * the new company. Both menu keys ('companies',
@@ -20,8 +20,8 @@ import { routes } from '../../routes.js';
 import { db } from '../../data/db.js';
 import { MENU_PAGE } from './data.js';
 
-/** A company's Documents tabs and the Info Request builder: switching company keeps the page (`/companies/<id>/documents[/questions|/requests|/information-request]`). */
-const STAY_ON = /^\/companies\/[^/]+(\/documents(?:\/questions|\/requests|\/information-request)?)$/;
+/** A company's Documents tabs and the Info Request builder: switching company keeps the page (`/companies/<id>/documents[/requests|/exports|/final-report|/information-request]`). */
+const STAY_ON = /^\/companies\/[^/]+(\/documents(?:\/requests|\/exports|\/final-report|\/information-request)?)$/;
 
 const MENU_FIRST_PAGE = [
   'abc-co', 'backside-blocks', 'captable', 'cohesity', 'company-31',

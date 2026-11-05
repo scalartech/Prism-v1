@@ -793,6 +793,7 @@ button.scalar-breadcrumb-item { background: none; border: 0; padding: 0; cursor:
 /* --- Progress bar ---------------------------------------------------------- */
 .scalar-progress { width: 100%; height: var(--space-s); background: var(--color-bg-subtle); border-radius: var(--radius-full); overflow: hidden; }
 .scalar-progress__fill { height: 100%; background: var(--color-bg-brand); border-radius: var(--radius-full); width: 100%; transition: translate var(--duration-moderate) var(--easing-standard); }
+.scalar-progress--complete .scalar-progress__fill { background: var(--color-bg-positive); }
 .scalar-progress--indeterminate .scalar-progress__fill { width: 40%; animation: scalar-progress-slide 1.2s ease-in-out infinite; }
 @keyframes scalar-progress-slide {
   0%   { transform: translateX(-100%); }

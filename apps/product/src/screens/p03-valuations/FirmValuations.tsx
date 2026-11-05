@@ -30,7 +30,8 @@ const AVAILABLE = 140;
 /**
  * Open process-management tasks: what the company still owes on its information
  * request (documents, questions), read live from the same list as Company ›
- * Documents › Requests. Each pill opens that list, filtered to what is pending.
+ * Documents › Requests. Each pill opens that list, filtered to what is pending
+ * (questions are requests too, so both pills land on Requests).
  */
 function Tasks({ company }: { company: Company }) {
   const t = openTasksOf(company.id);
@@ -52,7 +53,7 @@ function Tasks({ company }: { company: Company }) {
           label={`${company.name}: ${t.questions} open question${t.questions === 1 ? '' : 's'}`}
           count={t.questions}
           icon={<icons.QuestionMark />}
-          onClick={() => navigate(routes.company.questions(company.id))}
+          onClick={() => navigate(routes.company.requests(company.id), 'pending')}
         />
       )}
     </span>

@@ -329,65 +329,14 @@
     "title": "Documents › Requests",
     "figmaPage": "05 · Documents (Firm)",
     "route": "/documents/requests",
-    "summary": "See every company’s information request at a glance — sent, resolved and pending documents and questions — and pick a company to open its requests.",
+    "summary": "Every company’s information request in one table — pending, resolved / total, due date, last activity — pending first; a company opens in its own context.",
     "component": "FirmRequests",
     "states": [
       {
         "key": "default",
-        "label": "Requests — all companies overview",
+        "label": "Requests — one company table, pending first",
         "figmaNode": "proto:firm-requests:1",
         "section": "Requests",
-        "figmaUrl": null
-      }
-    ]
-  },
-  {
-    "id": "documents.requests.company",
-    "title": "Documents › Requests · company selected",
-    "figmaPage": "05 · Documents (Firm)",
-    "route": "/documents/requests/:companyId",
-    "summary": "One company’s information request, picked from All Companies: the numbered list, who it went to, what came back and what is pending.",
-    "component": "FirmRequests",
-    "states": [
-      {
-        "key": "default",
-        "label": "Requests — company selected",
-        "figmaNode": "proto:firm-requests:2",
-        "section": "Requests",
-        "figmaUrl": null
-      }
-    ]
-  },
-  {
-    "id": "documents.questions",
-    "title": "Documents › Questions",
-    "figmaPage": "05 · Documents (Firm)",
-    "route": "/documents/questions",
-    "summary": "See how many questions each company still has to answer, and pick a company to read its answers.",
-    "component": "FirmQuestions",
-    "states": [
-      {
-        "key": "default",
-        "label": "Questions — all companies overview",
-        "figmaNode": "proto:firm-questions:1",
-        "section": "Questions",
-        "figmaUrl": null
-      }
-    ]
-  },
-  {
-    "id": "documents.questions.company",
-    "title": "Documents › Questions · company selected",
-    "figmaPage": "05 · Documents (Firm)",
-    "route": "/documents/questions/:companyId",
-    "summary": "One company’s questions, pending and answered, picked from All Companies.",
-    "component": "FirmQuestions",
-    "states": [
-      {
-        "key": "default",
-        "label": "Questions — company selected",
-        "figmaNode": "proto:firm-questions:2",
-        "section": "Questions",
         "figmaUrl": null
       }
     ]
@@ -827,30 +776,6 @@
     ]
   },
   {
-    "id": "company.documents.questions",
-    "title": "Questions",
-    "figmaPage": "10 · Company · Documents & Requests",
-    "route": "/companies/:companyId/documents/questions",
-    "summary": "See which questions sent in information requests are still waiting for an answer, and read the answers that came back.",
-    "component": "Questions",
-    "states": [
-      {
-        "key": "default",
-        "label": "Questions — pending and answered",
-        "figmaNode": "proto:company-questions:1",
-        "section": "Questions",
-        "figmaUrl": null
-      },
-      {
-        "key": "empty",
-        "label": "Questions — Empty",
-        "figmaNode": "14:10616",
-        "section": "Questions",
-        "figmaUrl": "https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-10616"
-      }
-    ]
-  },
-  {
     "id": "company.documents.requests",
     "title": "Requests",
     "figmaPage": "10 · Company · Documents & Requests",
@@ -874,9 +799,85 @@
       },
       {
         "key": "empty",
-        "label": "Requests — nothing sent yet",
-        "figmaNode": "proto:company-requests:3",
+        "label": "Questions — Empty",
+        "figmaNode": "14:10616",
         "section": "Requests",
+        "figmaUrl": "https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=14-10616"
+      }
+    ]
+  },
+  {
+    "id": "company.documents.exports",
+    "title": "Exports",
+    "figmaPage": "10 · Company · Documents & Requests",
+    "route": "/companies/:companyId/documents/exports",
+    "summary": "The Excel exports made from Financials, Cap Table and Waterfall, by measurement date: who exported each one and when; download or delete.",
+    "component": "Exports",
+    "states": [
+      {
+        "key": "default",
+        "label": "Exports — by measurement date",
+        "figmaNode": "proto:company-exports:1",
+        "section": "Exports",
+        "figmaUrl": null
+      },
+      {
+        "key": "empty",
+        "label": "Exports — none yet",
+        "figmaNode": "proto:company-exports:2",
+        "section": "Exports",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "company.documents.final-report",
+    "title": "Final Report",
+    "figmaPage": "10 · Company · Documents & Requests",
+    "route": "/companies/:companyId/documents/final-report",
+    "summary": "The one final report per measurement date: pick it from the PDF versions or upload one, preview before publishing, see when it goes out of date. Clients see only the final file.",
+    "component": "FinalReport",
+    "states": [
+      {
+        "key": "default",
+        "label": "Final Report — versions and preview, final out of date",
+        "figmaNode": "proto:company-final-report:1",
+        "section": "Final Report",
+        "figmaUrl": null
+      },
+      {
+        "key": "empty",
+        "label": "Final Report — none yet (analyst)",
+        "figmaNode": "proto:company-final-report:2",
+        "section": "Final Report",
+        "figmaUrl": null
+      },
+      {
+        "key": "create",
+        "label": "Final Report — create PDF export",
+        "figmaNode": "proto:company-final-report:3",
+        "section": "Final Report",
+        "figmaUrl": null
+      },
+      {
+        "key": "render-failed",
+        "label": "Final Report — PDF can’t render, download instead",
+        "figmaNode": "proto:company-final-report:4",
+        "section": "Final Report",
+        "figmaUrl": null
+      },
+      {
+        "key": "client",
+        "label": "Final Report — client view",
+        "figmaNode": "proto:company-final-report:5",
+        "section": "Final Report",
+        "figmaUrl": null
+      },
+      {
+        "key": "client-empty",
+        "label": "Final Report — client view, not published yet",
+        "figmaNode": "proto:company-final-report:6",
+        "section": "Final Report",
         "figmaUrl": null
       }
     ]
@@ -1256,12 +1257,12 @@
     "title": "Reports (prototype)",
     "figmaPage": "Prototype · reports",
     "route": "/reports",
-    "summary": "Request a report from the Scalar team or create one from the portfolio data.",
+    "summary": "Every company’s Final Report for the header’s measurement date — Published, Out of date, Not created — with the ones that need work first.",
     "component": "Reports",
     "states": [
       {
         "key": "default",
-        "label": "Reports — default",
+        "label": "Reports — final report status by company",
         "figmaNode": "proto:reports:1",
         "section": "Prototype",
         "figmaUrl": null

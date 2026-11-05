@@ -5,16 +5,22 @@
  * receives it and when it is due, and sends. Sending adds the requests to the
  * company's Requests list as Pending, numbered after what was already sent.
  *
- * Opened from "New Info Request" on Company · Documents, Questions and Requests,
+ * Opened from "Info Request" on Company · Requests,
  * from Firm Valuations and from the Workspace drawer's "Request new document".
  * The company's three navigation tiers stay; Cancel and Send sit in Tier 3.
+ *
+ * The first field is the Template (Standard valuation request, the company's
+ * last request, Blank, or a saved template): it sets the requests and the
+ * introduction. Switching after edits asks first — Replace or Add to current
+ * (merged by category, skipping requests whose wording already exists).
+ * Recipients and the due date never change with the template.
  *
  * Figma: 10 · Company · Documents & Requests → Information Request (2 frames);
  * layout from the Unified Request Portal prototype.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Button, ButtonIcon, Chip, ComboboxPanel, FormField, Heading, Icon, Input, Overline, Select, SubmenuItem,
+  Alert, Button, ButtonIcon, Chip, ComboboxPanel, FormField, Heading, Icon, Input, Modal, Overline, Select, SubmenuItem,
   Text, Textarea, color, icons, radius, space, zIndex,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
@@ -23,12 +29,12 @@ import { routes } from '../../routes.js';
 import { companyById } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
-import { INTRODUCTION, REQUEST_META } from '../prototypes/request-portal/fixtures.js';
-import { responseTypeLabel } from '../prototypes/request-portal/model.js';
+import { REQUEST_META } from '../prototypes/request-portal/fixtures.js';
+import { formatDay, responseTypeLabel } from '../prototypes/request-portal/model.js';
 import { DueDateDialog } from '../prototypes/request-portal/PortalModals.js';
 import { CompanyActionsButton, DocumentsSubNav } from './shared.js';
-import { defaultDrafts, responsibles } from './data.js';
-import { BUILDER_TYPES, CATEGORIES, seedDueDate, sendInformationRequest, type DraftRequest } from './requestData.js';
+import { requestTemplates, responsibles, type RequestTemplate } from './data.js';
+import { BUILDER_TYPES, CATEGORIES, lastSentTemplate, seedDueDate, sendInformationRequest, type DraftRequest } from './requestData.js';
 import { SENT_NOTE_KEY } from './Requests.js';
 
 const fmt = (iso: string) => { const [y, m, d] = iso.split('-'); return `${m}/${d}/${y}`; };
@@ -39,16 +45,58 @@ const CONTACTS = [...new Set([REQUEST_META.respondent, ...responsibles.map((r) =
 let keySeq = 0;
 const newKey = () => `d${++keySeq}`;
 
+type Draftable = Omit<DraftRequest, 'key'>;
+const withKeys = (rs: Draftable[]) => rs.map((d) => ({ ...d, key: newKey() }));
+const introText = (t: { introduction: string[] }) => t.introduction.join('\n\n').replace('{sender}', 'Scalar');
+/** What counts as an edit: the requests (wording, type, category) and the introduction. */
+const snapshot = (drafts: DraftRequest[], intro: string) =>
+  JSON.stringify([drafts.map((d) => [d.categoryId, d.title, d.responseType]), intro]);
+const catOrder = (id: string) => CATEGORIES.find((c) => c.id === id)?.order ?? 99;
+
+/** Add a template's requests to the current ones, by category, skipping wording that already exists. */
+function mergeInto(current: DraftRequest[], adding: Draftable[]): DraftRequest[] {
+  const seen = new Set(current.map((d) => d.title.trim().toLowerCase()));
+  const fresh = adding.filter((d) => !seen.has(d.title.trim().toLowerCase()));
+  return [...current, ...withKeys(fresh)].map((d, i) => ({ d, i }))
+    .sort((a, b) => catOrder(a.d.categoryId) - catOrder(b.d.categoryId) || a.i - b.i).map((x) => x.d);
+}
+
 export function InformationRequest({ state, params }: ScreenProps) {
   const company = companyById(params.companyId);
-  const [drafts, setDrafts] = useState<DraftRequest[]>(() => defaultDrafts.map((d) => ({ ...d, key: newKey() })));
+  // The template list: the company's last request and Blank first, then the firm's saved templates.
+  const templates = useMemo<RequestTemplate[]>(() => {
+    const last = lastSentTemplate(company.id);
+    return [
+      ...(last.requests.length ? [{ id: 'last', name: 'Last request sent to this company', updatedAt: last.sentAt ?? '', introduction: last.introduction, requests: last.requests }] : []),
+      { id: 'blank', name: 'Blank', updatedAt: '', introduction: [], requests: [] },
+      ...requestTemplates,
+    ];
+  }, [company.id]);
+  const standard = templates.find((t) => t.id === 'standard')!;
+  const [templateId, setTemplateId] = useState(standard.id);
+  const [switchTo, setSwitchTo] = useState<RequestTemplate | null>(null);
+  const [drafts, setDrafts] = useState<DraftRequest[]>(() => withKeys(standard.requests));
   const [category, setCategory] = useState<string>('all');
   const [recipients, setRecipients] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(state === 'responsible-picker');
   const [query, setQuery] = useState('');
   const [dueDate, setDueDate] = useState(seedDueDate);
   const [dueOpen, setDueOpen] = useState(false);
-  const [intro, setIntro] = useState(INTRODUCTION.join('\n\n').replace('{sender}', 'Scalar'));
+  const [intro, setIntro] = useState(() => introText(standard));
+  const [baseline, setBaseline] = useState(() => snapshot(drafts, intro));
+  const edited = snapshot(drafts, intro) !== baseline;
+
+  const applyTemplate = (t: RequestTemplate) => {
+    const next = withKeys(t.requests);
+    const text = introText(t);
+    setDrafts(next); setIntro(text); setBaseline(snapshot(next, text)); setTemplateId(t.id); setCategory('all'); setSwitchTo(null);
+  };
+  const addTemplate = (t: RequestTemplate) => { setDrafts((cur) => mergeInto(cur, t.requests)); setTemplateId(t.id); setSwitchTo(null); };
+  const pickTemplate = (id: string) => {
+    const t = templates.find((x) => x.id === id);
+    if (!t || id === templateId) return;
+    if (edited) setSwitchTo(t); else applyTemplate(t);
+  };
   const [tried, setTried] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const focusKey = useRef<string | null>(null);
@@ -128,6 +176,16 @@ export function InformationRequest({ state, params }: ScreenProps) {
   /* ---- who, when, and the introduction ---- */
   const sendTo = (
     <section aria-labelledby="ir-send-to" style={{ display: 'flex', flexDirection: 'column', gap: space.m, padding: space.m, borderBottom: `1px solid ${color.stroke.divider}` }}>
+      {/* Set-up first: the template decides the requests and the introduction. Commit actions stay in Tier 3. */}
+      <FormField label="Template" helperText="Sets the requests and the introduction. Recipients and the due date stay as they are.">
+        <Select value={templateId} onChange={(e) => pickTemplate(e.currentTarget.value)}>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {`${t.name} — ${t.requests.length} request${t.requests.length === 1 ? '' : 's'}${t.updatedAt ? ` · ${t.id === 'last' ? 'sent' : 'edited'} ${formatDay(t.updatedAt)}` : ''}`}
+            </option>
+          ))}
+        </Select>
+      </FormField>
       <Heading level={2} step="m" id="ir-send-to">Send to</Heading>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: space.l, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space.s }}>
@@ -273,7 +331,28 @@ export function InformationRequest({ state, params }: ScreenProps) {
       }
       dock={false}
       overlay={
-        <DueDateDialog open={dueOpen} onClose={() => setDueOpen(false)} dueDate={dueDate} onSave={setDueDate} />
+        <>
+          <DueDateDialog open={dueOpen} onClose={() => setDueOpen(false)} dueDate={dueDate} onSave={setDueDate} />
+          <Modal
+            open={switchTo !== null}
+            onClose={() => setSwitchTo(null)}
+            size="s"
+            role="alertdialog"
+            title={switchTo ? `Replace your ${drafts.length} request${drafts.length === 1 ? '' : 's'} with ‘${switchTo.name}’ (${switchTo.requests.length} request${switchTo.requests.length === 1 ? '' : 's'})?` : ''}
+            footer={
+              <>
+                <Button variant="tertiary" onClick={() => setSwitchTo(null)}>Cancel</Button>
+                <Button variant="secondary" disabled={!switchTo?.requests.length} onClick={() => switchTo && addTemplate(switchTo)}>Add to current</Button>
+                <Button variant="primary" onClick={() => switchTo && applyTemplate(switchTo)}>Replace</Button>
+              </>
+            }
+          >
+            <Text step="m">
+              You have edited this request. Replace discards your edits and starts from the template. Add to current keeps
+              them and adds the template’s requests, skipping any with the same wording. Recipients and the due date stay as they are.
+            </Text>
+          </Modal>
+        </>
       }
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: space.m }}>

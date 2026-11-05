@@ -100,8 +100,12 @@ export function recipientsOf(meta: Meta, r: Pick<InformationRequest, 'id' | 'par
 
 /* ---- the request builder ---- */
 
-/** What the builder offers: the portal's response types that need no asset from Scalar. */
-export const BUILDER_TYPES: ResponseType[] = ['file', 'text', 'choice', 'date'];
+/**
+ * What the builder offers: the portal's response types that need no asset from
+ * Scalar. Question types first — Questions folded into Requests, so "Add
+ * request" is also how a question is asked.
+ */
+export const BUILDER_TYPES: ResponseType[] = ['choice', 'text', 'date', 'file'];
 
 export interface DraftRequest {
   key: string;
@@ -144,7 +148,26 @@ export function sendInformationRequest(companyId: string, drafts: DraftRequest[]
   return added.length;
 }
 
-/* ---- counts: the Documents / Questions / Requests heading, the firm lists and Valuations ---- */
+/**
+ * The builder's "Last request sent to this company": every top-level request
+ * already sent, as drafts (template files and multiple choice fall back to the
+ * nearest builder type), with the introduction that went with them.
+ */
+export function lastSentTemplate(companyId: string): { requests: Omit<DraftRequest, 'key'>[]; introduction: string[]; sentAt?: string } {
+  const sent = peekRequests(requestsKey(companyId), requestsSeed(companyId)).filter((r) => !r.parentId);
+  const meta = loadMeta(companyId);
+  return {
+    requests: sent.map((r) => ({
+      categoryId: r.categoryId,
+      title: r.title,
+      responseType: BUILDER_TYPES.includes(r.responseType) ? r.responseType : r.responseType === 'multiple_choice' ? 'choice' : 'file',
+    })),
+    introduction: meta.introduction,
+    sentAt: meta.batches.map((b) => b.sentAt).sort().pop(),
+  };
+}
+
+/* ---- counts: the Requests meter, firm Requests and Valuations ---- */
 
 export interface RequestCounts {
   total: number; resolved: number; pending: number;
@@ -153,7 +176,11 @@ export interface RequestCounts {
   documentsPending: number;
   /** Due date, ISO; undefined when nothing was sent. */
   dueDate?: string;
+  /** Last thing that happened, ISO: a request sent, answered or uploaded to. Undefined when nothing was sent. */
+  lastActivity?: string;
 }
+
+const latest = (isos: (string | undefined)[]) => isos.filter((d): d is string => !!d).sort().pop();
 
 export function requestCounts(companyId: string, state = 'default'): RequestCounts {
   const key = requestsKey(companyId, state);
@@ -170,6 +197,10 @@ export function requestCounts(companyId: string, state = 'default'): RequestCoun
     questionsAnswered: qs.filter((r) => isResolved(r, every)).length,
     documentsPending: all.filter((r) => !isQuestion(r) && !isResolved(r, every)).length,
     dueDate: all.length ? peekDueDate(key, seed) : undefined,
+    lastActivity: all.length ? latest([
+      ...loadMeta(companyId, state).batches.map((b) => b.sentAt),
+      ...every.flatMap((r) => [r.updatedAt, ...(r.files ?? []).map((f) => f.uploadedAt)]),
+    ]) : undefined,
   };
 }
 

@@ -1,32 +1,49 @@
 /**
- * Chrome shared by Company · Documents, Questions and Requests: the sub-nav
- * (Documents / Questions / Requests) and the request heading (title, progress
- * bar, request counts, page actions, "New Info Request" and the page ⋮ menu).
+ * Chrome shared by Company · Documents, Requests, Exports and Final Report:
+ * the Tier 3 tabs, Info Request, the request meter and the company row's ⋮ menu.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, ButtonIcon, ContextMenu, Heading, Icon, Input, MenuItem, ProgressBar, TertiaryMenuItem, Text,
-  icons, space, zIndex,
+  Button, ButtonIcon, ContextMenu, Icon, Input, MenuItem, ProgressBar, TertiaryMenuItem, Text, Tooltip,
+  icons, size, space, zIndex,
 } from '@scalar/design-system';
 import { href, navigate } from '../../router.js';
 import { routes } from '../../routes.js';
+import { companyById } from '../../data/fixtures.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
+import { formatDay } from '../prototypes/request-portal/model.js';
+import { useFinalReport } from './finalReportData.js';
 
-export type DocumentsTab = 'documents' | 'questions' | 'requests';
+export type DocumentsTab = 'documents' | 'requests' | 'exports' | 'final-report';
 
+/**
+ * Tier 3 inside a company: Documents · Requests · Exports · Final Report.
+ * Questions folded into Requests. Final Report carries a warning mark, for
+ * analysts, while its final version is out of date — a status with a name,
+ * never colour alone.
+ */
 export function DocumentsSubNav({ companyId, current }: { companyId: string; current: DocumentsTab }) {
+  const report = useFinalReport(companyId, companyById(companyId).asOf);
+  const stale = report.status === 'out-of-date';
   return (
     <>
       <TertiaryMenuItem current={current === 'documents'} href={href(routes.company.documents(companyId))}>Documents</TertiaryMenuItem>
-      <TertiaryMenuItem current={current === 'questions'} href={href(routes.company.questions(companyId))}>Questions</TertiaryMenuItem>
       <TertiaryMenuItem current={current === 'requests'} href={href(routes.company.requests(companyId))}>Requests</TertiaryMenuItem>
+      <TertiaryMenuItem current={current === 'exports'} href={href(routes.company.exports(companyId))}>Exports</TertiaryMenuItem>
+      <TertiaryMenuItem
+        current={current === 'final-report'}
+        href={href(routes.company.finalReport(companyId))}
+        tags={stale ? <Icon size="xs" tone="warning" label="Final report out of date"><icons.Error /></Icon> : undefined}
+      >
+        Final Report
+      </TertiaryMenuItem>
     </>
   );
 }
 
 /**
- * Opens the request builder. The last item of Tier 3 on Documents, Questions
- * and Requests. It starts a task, so it is an action, not a link.
+ * Opens the request builder. The last item of Tier 3 on Requests (Documents
+ * reaches the builder from the ⋮ menu). It starts a task, so it is an action, not a link.
  */
 export function InfoRequestButton({ companyId }: { companyId: string }) {
   return (
@@ -45,27 +62,52 @@ export function CompanyActionsButton() {
   return <ButtonIcon variant="tertiary" size="xs" label="Company actions" icon={<Icon size="l" tone="primary"><icons.MoreVert /></Icon>} />;
 }
 
-export interface ProgressCounts {
-  done: number;
-  total: number;
-  /** e.g. "Requests: 27 sent, 5 resolved, 22 pending". */
-  text: string;
-  /** Accessible name of the bar. */
-  label: string;
+/** True below `px` wide — the meter drops to "27/29" on narrow screens. */
+export function useNarrow(px: number) {
+  const q = `(max-width: ${px - 1}px)`;
+  const [narrow, setNarrow] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, [q]);
+  return narrow;
 }
 
-/** A slim determinate bar (Feedback › ProgressBar) with its done/total fraction and the counts in words. */
-export function RequestsProgress({ counts, step = 'm' }: { counts: ProgressCounts; step?: 's' | 'm' }) {
+export interface MeterCounts { total: number; resolved: number; pending: number; dueDate?: string }
+
+/**
+ * The compact request meter at the left of the Requests toolbar: a short bar
+ * and "27 of 29 resolved". The breakdown is in its tooltip; pressing it shows
+ * only what is pending. Complete: Positive bar, check and "All 29 resolved".
+ */
+export function RequestsMeter({ counts, onShowPending }: { counts: MeterCounts; onShowPending: () => void }) {
+  const narrow = useNarrow(1280);
+  const { total, resolved, pending, dueDate } = counts;
+  if (!total) return null;
+  const complete = pending === 0;
+  const words = complete ? `All ${total} resolved` : narrow ? `${resolved}/${total}` : `${resolved} of ${total} resolved`;
+  const breakdown = `${total} sent · ${resolved} resolved · ${pending} pending${dueDate ? ` · due ${formatDay(dueDate)}` : ''}`;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: space.s, minWidth: 0 }}>
-      <div style={{ flex: '0 0 auto', width: '8vw', display: 'flex' }}>
-        <ProgressBar value={counts.total ? (counts.done / counts.total) * 100 : 0} label={counts.label} />
-      </div>
-      <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-        {counts.done}/{counts.total}
-      </Text>
-      <Text as="span" step={step} tone="secondary" truncate>{counts.text}</Text>
-    </div>
+    <Tooltip content={complete ? breakdown : `${breakdown}. Press to show only what is pending.`}>
+      <button
+        type="button"
+        className="scalar-focusable"
+        aria-label={`${resolved} of ${total} requests resolved, ${pending} pending.${complete ? '' : ' Show pending requests.'}`}
+        onClick={complete ? undefined : onShowPending}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: space.s, padding: `0 ${space.xs}`, minHeight: size.target.dense,
+          background: 'none', border: 0, cursor: complete ? 'default' : 'pointer', font: 'inherit', color: 'inherit',
+        }}
+      >
+        <span style={{ width: `calc(${size.control.l} * 2)`, display: 'flex' }} aria-hidden>
+          <ProgressBar value={(resolved / total) * 100} label="Requests resolved" />
+        </span>
+        {complete && <Icon size="s" tone="positive"><icons.CheckCircle /></Icon>}
+        <Text as="span" step="s" tone={complete ? 'positive' : 'secondary'} style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{words}</Text>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -143,39 +185,9 @@ export function PageActionsMenu({ companyId, label, menuOpen: initialMenu = fals
   );
 }
 
-/**
- * The company row's right end on Documents, Questions and Requests: the page's
- * progress, then the ⋮ menu. The tabs already say which page this is, so the
- * page has no title of its own.
- */
-export function CompanyDocsHeaderEnd({ companyId, counts, menuOpen }: { companyId: string; counts: ProgressCounts; menuOpen?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: space.m, minWidth: 0 }}>
-      <RequestsProgress counts={counts} step="s" />
-      <PageActionsMenu companyId={companyId} label="Company actions" trigger="company" menuOpen={menuOpen} />
-    </div>
-  );
-}
-
-/** Title, progress and ⋮ menu — the firm Requests / Questions tabs, where the page names the picked company. */
-export function RequestsHeading({ companyId, title, counts, actions, menuOpen }: {
-  companyId: string;
-  title: string;
-  counts: ProgressCounts;
-  /** Page actions before the ⋮ menu. */
-  actions?: ReactNode;
-  menuOpen?: boolean;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: space.m }}>
-      <Heading level={2} step="2xl">{title}</Heading>
-      <RequestsProgress counts={counts} />
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.s }}>
-        {actions}
-        <PageActionsMenu companyId={companyId} label={`${title} page actions`} menuOpen={menuOpen} />
-      </div>
-    </div>
-  );
+/** The company row's right end on every Documents tab: the ⋮ menu. The tabs name the page; request progress lives on Requests. */
+export function CompanyDocsHeaderEnd({ companyId, menuOpen }: { companyId: string; menuOpen?: boolean }) {
+  return <PageActionsMenu companyId={companyId} label="Company actions" trigger="company" menuOpen={menuOpen} />;
 }
 
 /** "Requests: 27 sent, 5 resolved, 22 pending" — every count from the same list. */

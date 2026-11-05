@@ -8,8 +8,9 @@
  * - A one-line upload bar instead of the tall Dropzone. Below the request's `maxFiles` it reads
  *   "Add another file" once a file exists; at a one-file limit it is "Replace file". While a file is
  *   dragged, the whole request card is the drop target (RequestRow), so the small bar costs no precision.
- * - The requirements line is always visible, from the request's own limits ("Up to 250 MB · Office
- *   files, PDF, CSV"), with every format in a tooltip. The picker's `accept` filters the system dialog;
+ * - The limits are always visible, from the request's own limits: in the empty bar they are part of
+ *   the dropzone line ("Drag & drop or select a file · PDF, Office, CSV · max 250 MB"), elsewhere
+ *   beside the action, with every format in a tooltip. The picker's `accept` filters the system dialog;
  *   type and size are checked in the browser before an upload starts (P0.5), because a drop ignores `accept`.
  *
  * Built from DS parts (Button, ButtonIcon, FileTypeBadge, ProgressBar, Tooltip, Text): the DS Dropzone
@@ -269,12 +270,17 @@ export function UploadBar({ req, op, store, notify, onFiles, dragOver, num, labe
         }}
       >
         <Icon size="s" tone={dragOver ? 'brand' : 'secondary'}><icons.UploadFile /></Icon>
-        <Text as="span" step="s">{dragOver ? 'Drop to upload' : <>Drag & drop {label ?? (multiple ? 'files' : 'a file')} or</>}</Text>
+        <Text as="span" step="s">{dragOver ? 'Drop to upload' : <>Drag & drop {label ?? ''} or</>}</Text>
         {!dragOver && (
-          <Button variant="tertiary" size="xs" aria-describedby={reqId} onClick={pick}>{multiple ? 'select files' : 'select a file'}</Button>
+          <>
+            <Button variant="tertiary" size="xs" aria-describedby={reqId} onClick={pick}>{multiple ? 'select files' : 'select a file'}</Button>
+            {/* The limits sit in the dropzone line itself, muted, so they are read before a file is dropped. */}
+            <Text as="span" id={reqId} step="s" tone="secondary" title={`Accepted formats: ${accepted.join(', ')}`}>
+              <span aria-hidden>· </span>{requirements}
+            </Text>
+          </>
         )}
       </div>
-      {reqLine}
     </div>
   );
 }

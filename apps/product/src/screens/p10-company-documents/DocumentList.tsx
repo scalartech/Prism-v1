@@ -3,11 +3,13 @@
  * page with this company already selected: measurement-date folders holding
  * the file tree on the left, the document preview on the right. The company's
  * three navigation tiers stay (product menu · company header · Documents /
- * Questions / Requests).
+ * Requests / Exports / Final Report).
  *
- * The tabs already name the page, so there is no title: request progress and
- * the ⋮ menu sit in the company row, search in Tier 3. One line per document
- * (type icon, name, details right-aligned); subfolders are plain rows.
+ * The tabs already name the page, so there is no title: the ⋮ menu sits in the
+ * company row, search in Tier 3. Request progress lives on Requests, and
+ * system-generated exports on Exports, so this tree holds only what the client
+ * and the team uploaded. One line per document (type icon, name, details
+ * right-aligned); subfolders are plain rows.
  *
  * Figma: 10 · Company · Documents & Requests → Documents List (3 frames); body
  * from 05 · Documents (Firm) → Company Documents.
@@ -21,8 +23,7 @@ import { companyById, user } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
 import { companyDates, rootFiles, subfoldersFor, type DocFile } from '../p05-documents/data.js';
 import { DateBand, DocRow, FolderRow, Viewer, metaChips } from '../p05-documents/parts.js';
-import { CompanyDocsHeaderEnd, DocumentsSubNav, TierSearch, requestsText } from './shared.js';
-import { requestCounts } from './requestData.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, TierSearch } from './shared.js';
 
 const PREVIEW_MS = 1200;
 const today = '09/28/2026';
@@ -75,7 +76,6 @@ export function DocumentList({ state, params }: ScreenProps) {
   const timer = useRef<number>();
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const counts = requestCounts(company.id);
   const root = [...uploaded, ...rootFiles];
   const folders = subfoldersFor(company.name);
   const allFiles = [...root, ...folders.flatMap((s) => s.files)];
@@ -144,13 +144,7 @@ export function DocumentList({ state, params }: ScreenProps) {
       company={company}
       section="documents"
       date={company.asOf}
-      headerEnd={
-        <CompanyDocsHeaderEnd
-          companyId={company.id}
-          menuOpen={state === 'page-menu'}
-          counts={{ done: counts.resolved, total: counts.total, label: 'Information requests resolved', text: requestsText(counts) }}
-        />
-      }
+      headerEnd={<CompanyDocsHeaderEnd companyId={company.id} menuOpen={state === 'page-menu'} />}
       subNav={<DocumentsSubNav companyId={company.id} current="documents" />}
       subNavEnd={
         <>
@@ -193,7 +187,7 @@ export function DocumentList({ state, params }: ScreenProps) {
                 <DateBand
                   compact={!!file}
                   date={d}
-                  meta={i === 0 ? `${allFiles.length} documents | ${folders.length} subfolders | ${requestsText(counts)}` : undefined}
+                  meta={i === 0 ? `${allFiles.length} documents | ${folders.length} subfolder${folders.length === 1 ? '' : 's'}` : undefined}
                   expanded={open}
                   onToggle={() => setExpandedDates((s) => toggle(s, d))}
                   onAddFolder={() => {}}

@@ -1,7 +1,7 @@
 import type { ScreenDef } from '../../types.js';
 import { routes } from '../../routes.js';
 import { Documents } from './Documents.js';
-import { FirmQuestions, FirmRequests } from './FirmRequests.js';
+import { FirmRequests } from './FirmRequests.js';
 
 const all = 'All Documents';
 const company = 'Company Documents · Viewer & Add Folder';
@@ -27,42 +27,10 @@ export const screens: ScreenDef[] = [{
   title: 'Documents › Requests',
   figmaPage: '05 · Documents (Firm)',
   route: routes.firmDocuments.requests,
-  summary: 'See every company’s information request at a glance — sent, resolved and pending documents and questions — and pick a company to open its requests.',
+  summary: 'Every company’s information request in one table — pending, resolved / total, due date, last activity — pending first; a company opens in its own context.',
   component: FirmRequests,
   states: [
-    { key: 'default', label: 'Requests — all companies overview', figmaNode: 'proto:firm-requests:1', section: 'Requests' },
+    { key: 'default', label: 'Requests — one company table, pending first', figmaNode: 'proto:firm-requests:1', section: 'Requests' },
   ],
-},
-{
-  id: 'documents.requests.company',
-  title: 'Documents › Requests · company selected',
-  figmaPage: '05 · Documents (Firm)',
-  route: routes.firmDocuments.companyRequests(':companyId'),
-  summary: 'One company’s information request, picked from All Companies: the numbered list, who it went to, what came back and what is pending.',
-  component: FirmRequests,
-  states: [
-    { key: 'default', label: 'Requests — company selected', figmaNode: 'proto:firm-requests:2', section: 'Requests' },
-  ],
-},
-{
-  id: 'documents.questions',
-  title: 'Documents › Questions',
-  figmaPage: '05 · Documents (Firm)',
-  route: routes.firmDocuments.questions,
-  summary: 'See how many questions each company still has to answer, and pick a company to read its answers.',
-  component: FirmQuestions,
-  states: [
-    { key: 'default', label: 'Questions — all companies overview', figmaNode: 'proto:firm-questions:1', section: 'Questions' },
-  ],
-},
-{
-  id: 'documents.questions.company',
-  title: 'Documents › Questions · company selected',
-  figmaPage: '05 · Documents (Firm)',
-  route: routes.firmDocuments.companyQuestions(':companyId'),
-  summary: 'One company’s questions, pending and answered, picked from All Companies.',
-  component: FirmQuestions,
-  states: [
-    { key: 'default', label: 'Questions — company selected', figmaNode: 'proto:firm-questions:2', section: 'Questions' },
-  ],
-}];
+}
+];

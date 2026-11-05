@@ -4,11 +4,15 @@
  * choosing a company narrows to that company's tree and opens a document
  * preview beside it.
  *
+ * Row 2 holds the tabs — All documents · Requests — in place of a page title
+ * (the top nav already says Documents), so no global Documents view has a
+ * third nav row; the document tools sit at the top of the body.
+ *
  * Figma: 05 · Documents (Firm) → All Documents · Company Documents · Viewer & Add Folder (5 frames).
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, TertiaryMenu, Text, TreeItem, icons, space,
+  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, Text, TreeItem, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { href, navigate } from '../../router.js';
@@ -21,7 +25,7 @@ import {
   allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
   type DocFolder,
 } from './data.js';
-import { CompanyColumn, DateBand, DocRow, FolderRow, columnPanel, FirmDocsTabs, Viewer, metaChips } from './parts.js';
+import { CompanyColumn, DateBand, DocRow, FolderRow, columnPanel, firmDocsTabs, Viewer, metaChips } from './parts.js';
 
 const PREVIEW_MS = 1200;
 /** The company drawn open in the frames (All Documents → 03/31/2025, and the company-selected states). */
@@ -180,6 +184,22 @@ export function Documents({ state }: ScreenProps) {
 
   const everyId = allFiles.map((f) => f.id);
   const allChecked = everyId.every((id) => checked.has(id));
+  /** The document tools, at the top of the document column (Tier 3 is gone at firm level). */
+  const tools = (
+    <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
+      <Checkbox
+        size="s"
+        checked={allChecked}
+        indeterminate={!allChecked && checked.size > 0}
+        onChange={(e) => setChecked(e.target.checked ? new Set(everyId) : new Set())}
+      >
+        Select all
+      </Checkbox>
+      <ButtonIcon variant="tertiary" size="xs" label="Search documents" icon={<Icon size="s" tone="secondary"><icons.Search /></Icon>} />
+      <ButtonIcon variant="tertiary" size="xs" label="Filter documents" icon={<Icon size="s" tone="secondary"><icons.FilterList /></Icon>} />
+      <ButtonIcon variant="tertiary" size="xs" label="Full screen" icon={<Icon size="s" tone="secondary"><icons.Fullscreen /></Icon>} />
+    </span>
+  );
 
   return (
     <AppFrame
@@ -202,7 +222,9 @@ export function Documents({ state }: ScreenProps) {
       }
     >
       <PageHeader
-        title="Documents"
+        title={<span className="scalar-visually-hidden">Documents</span>}
+        tabs={firmDocsTabs}
+        current="documents"
         trailing={<ToolbarKebab />}
         actions={
           <>
@@ -212,25 +234,6 @@ export function Documents({ state }: ScreenProps) {
           </>
         }
       />
-      <TertiaryMenu
-        end={
-          <>
-            <Checkbox
-              size="s"
-              checked={allChecked}
-              indeterminate={!allChecked && checked.size > 0}
-              onChange={(e) => setChecked(e.target.checked ? new Set(everyId) : new Set())}
-            >
-              Select all documents
-            </Checkbox>
-            <ButtonIcon variant="tertiary" size="xs" label="Search documents" icon={<Icon size="s" tone="secondary"><icons.Search /></Icon>} />
-            <ButtonIcon variant="tertiary" size="xs" label="Filter documents" icon={<Icon size="s" tone="secondary"><icons.FilterList /></Icon>} />
-            <ButtonIcon variant="tertiary" size="xs" label="Full screen" icon={<Icon size="s" tone="secondary"><icons.Fullscreen /></Icon>} />
-          </>
-        }
-      >
-        <FirmDocsTabs current="documents" companyId={company?.id} />
-      </TertiaryMenu>
 
       <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
         <CompanyColumn
@@ -242,7 +245,10 @@ export function Documents({ state }: ScreenProps) {
         {!company ? (
           /* All Documents — every measurement date */
           <section aria-label="All Documents" style={{ ...columnPanel, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-            <Heading level={2} step="m">All Documents</Heading>
+            <div style={{ display: 'flex', alignItems: 'center', gap: space.s }}>
+              <Heading level={2} step="m">All Documents</Heading>
+              {tools}
+            </div>
             {measurementDates.map((m) => {
               const open = expandedDates.has(m.date);
               return (
@@ -281,6 +287,7 @@ export function Documents({ state }: ScreenProps) {
                   All Documents
                 </Button>
               </div>
+              <div style={{ display: 'flex' }}>{tools}</div>
               {companyDates.map((d, i) => {
                 const open = expandedDates.has(d);
                 return (

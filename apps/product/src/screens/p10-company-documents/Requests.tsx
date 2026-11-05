@@ -5,9 +5,12 @@
  * pending. The body is the Unified Request Portal's list (same rows, store and
  * dialogs, viewer = sender); the chrome is the company's three tiers.
  *
- * Tier 3: Documents · Questions · Requests, then Expand, Status, Select All and
- * Bulk actions, the due date and Info Request. Progress sits in the company row.
- * The body is `useRequestsWorkspace`, shared with the firm Documents › Requests tab.
+ * Tier 3: Documents · Requests · Exports · Final Report, then the request meter
+ * (bar + "27 of 29 resolved", breakdown in its tooltip), Expand, Status, Select
+ * All, Bulk actions, the due date and Info Request. Questions are requests too
+ * (Yes / No, written answer, multiple choice, date), so there is no Questions tab.
+ * Collapsed rows show each answer in place of the description, so the analyst
+ * reads every answer without expanding a row.
  *
  * Prototype (proto:company-requests): no Figma frames yet. Data lives in this browser.
  */
@@ -23,7 +26,7 @@ import { byNumber, isResolved, matchesStatus, type RequestStatus, type StatusFil
 import { DelegateDialog, DueDateDialog } from '../prototypes/request-portal/PortalModals.js';
 import { RequestRow } from '../prototypes/request-portal/RequestRow.js';
 import { usePortalStore } from '../prototypes/request-portal/store.js';
-import { CompanyDocsHeaderEnd, DocumentsSubNav, InfoRequestButton, RequestsHeading, requestsText, type ProgressCounts } from './shared.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, InfoRequestButton, RequestsMeter } from './shared.js';
 import { CATEGORIES, loadMeta, recipientsOf, requestsKey, requestsSeed, resetCompanyRequests } from './requestData.js';
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -41,11 +44,8 @@ interface ToastItem { id: number; tone: 'positive' | 'negative' | 'info'; text: 
 
 export interface RequestsWorkspace {
   company: Company;
-  /** The request progress — the company row shows it on Company › Requests. */
-  progress: ProgressCounts;
-  /** Tier 3 tools: Expand, Status, Select All, Bulk actions, due date. */
+  /** Tier 3 tools: the request meter, Expand, Status, Select All, Bulk actions, due date. */
   tools: ReactNode;
-  heading: ReactNode;
   content: ReactNode;
   overlay: ReactNode;
 }
@@ -56,7 +56,7 @@ export interface RequestsWorkspace {
  * each in its own chrome. Switching company keeps the hook mounted and resets
  * filters, selection and the sender's notes to that company's.
  */
-export function useRequestsWorkspace(companyId: string | undefined, state: string, title = 'Requests'): RequestsWorkspace {
+export function useRequestsWorkspace(companyId: string | undefined, state: string): RequestsWorkspace {
   const company = companyById(companyId);
   const seed = useMemo(() => requestsSeed(company.id, state), [company.id, state]);
   const store = usePortalStore(requestsKey(company.id, state), seed);
@@ -153,6 +153,7 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
   /* ---- tier 3 tools ---- */
   const tools = (
     <>
+      <RequestsMeter counts={{ ...counts, dueDate: total ? store.dueDate : undefined }} onShowPending={() => setStatusFilter('pending')} />
       <div style={{ position: 'relative' }}>
         <Button size="xs" variant="tertiary" disabled={!visible.length} aria-haspopup="menu" aria-expanded={expandMenu}
           leadingIcon={<Icon size="s" tone="inherit"><icons.UnfoldMore /></Icon>}
@@ -323,6 +324,8 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
               onDelegate={(id) => openDelegate([id])}
               notify={notify}
               mobile={false}
+              viewer="sender"
+              respondent={r.delegatee ?? recipientsOf(meta, r)[0]}
             />
           </RowWithHeader>
         );
@@ -357,9 +360,6 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     </>
   );
 
-  const progress: ProgressCounts = { done: resolvedCount, total, label: 'Information requests resolved', text: requestsText(counts) };
-  const heading = <RequestsHeading companyId={company.id} title={title} counts={progress} />;
-
   const content = (
     <>
       {sentNote && (
@@ -369,11 +369,6 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min-content, 1fr) minmax(0, 4fr)', gap: space.l, alignItems: 'start' }}>
         {aside}
         <section aria-label="Requests" style={{ minWidth: 0, border: `1px solid ${color.stroke.default}`, borderRadius: radius.s, background: color.bg.surface }}>
-          {total > 0 && counts.pending === 0 && (
-            <div style={{ padding: space.m }}>
-              <Banner tone="positive" title="Every request is resolved">{`${company.name} has responded to every request.`}</Banner>
-            </div>
-          )}
           {introduction}
           {list}
         </section>
@@ -381,25 +376,37 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     </>
   );
 
-  return { company, tools, heading, progress, content, overlay };
+  return { company, tools, content, overlay };
 }
 
 export function Requests({ state, params }: ScreenProps) {
   const w = useRequestsWorkspace(params.companyId, state);
+  usePageTitle(`${w.company.name} — Requests`);
   return (
     <CompanyLayout
       company={w.company}
       section="documents"
       date={w.company.asOf}
-      headerEnd={<CompanyDocsHeaderEnd companyId={w.company.id} counts={w.progress} />}
+      headerEnd={<CompanyDocsHeaderEnd companyId={w.company.id} />}
       subNav={<DocumentsSubNav companyId={w.company.id} current="requests" />}
       subNavEnd={<>{w.tools}<InfoRequestButton companyId={w.company.id} /></>}
       dock={false}
       overlay={w.overlay}
     >
+      {/* The tab names the page on screen; screen readers still get a heading (the company name is the h1). */}
+      <h2 className="scalar-visually-hidden">{`${w.company.name} — Requests`}</h2>
       {w.content}
     </CompanyLayout>
   );
+}
+
+/** The browser tab names the page the tab bar shows. */
+export function usePageTitle(title: string) {
+  useEffect(() => {
+    const was = document.title;
+    document.title = `${title} · Scalar`;
+    return () => { document.title = was; };
+  }, [title]);
 }
 
 function RowWithHeader({ header, children }: { header?: string; children: ReactNode }) {

@@ -5,30 +5,51 @@
  */
 import { Children, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
+  SelectMenu, SelectMenuOption, zIndex,
   Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FileRow, FilterDropdown, Heading, Icon, Input,
-  PageStepper, ScrollHintPill, Spinner, TertiaryMenuItem, Text, ZoomControl, color, elevation, icons, radius, space,
+  PageStepper, ScrollHintPill, Spinner, Text, ZoomControl, color, elevation, icons, radius, space,
   type FileRowProps,
 } from '@scalar/design-system';
-import { href } from '../../router.js';
+import type { PageTab } from '../../shell/PageHeader.js';
 import { routes } from '../../routes.js';
 import { docCompanies, type DocCompany, type DocFile } from './data.js';
 
 /* --- firm Documents chrome: Tier 3 tabs and the All Companies column ------- */
 
-export type FirmDocsTab = 'documents' | 'questions' | 'requests';
+export type FirmDocsTab = 'documents' | 'requests';
 
 /**
- * Firm Documents' Tier 3: Documents · Questions · Requests (the same three as
- * Company › Documents). Questions and Requests keep the selected company.
+ * Firm Documents' tabs, in row 2 in place of a page title (the top nav already
+ * says Documents): All documents · Requests. Questions folded into Requests;
+ * a company opens in its own context, where its tabs sit in Tier 3.
  */
-export function FirmDocsTabs({ current, companyId }: { current: FirmDocsTab; companyId?: string }) {
-  const f = routes.firmDocuments;
+export const firmDocsTabs: PageTab[] = [
+  { key: 'documents', label: 'All documents', to: routes.documents },
+  { key: 'requests', label: 'Requests', to: routes.firmDocuments.requests },
+];
+
+/** A toolbar filter: the value in force on a FilterDropdown, its options in a SelectMenu. */
+export function FilterSelect<T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
   return (
-    <>
-      <TertiaryMenuItem current={current === 'documents'} menu={false} href={href(routes.documents)}>Documents</TertiaryMenuItem>
-      <TertiaryMenuItem current={current === 'questions'} menu={false} href={href(companyId ? f.companyQuestions(companyId) : f.questions)}>Questions</TertiaryMenuItem>
-      <TertiaryMenuItem current={current === 'requests'} menu={false} href={href(companyId ? f.companyRequests(companyId) : f.requests)}>Requests</TertiaryMenuItem>
-    </>
+    <div style={{ position: 'relative' }}>
+      <FilterDropdown label={label} expanded={open} aria-haspopup="listbox" onClick={() => setOpen((o) => !o)}>
+        {options.find((o) => o.value === value)?.label}
+      </FilterDropdown>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: zIndex.overlay, marginTop: space.xs }}>
+          <SelectMenu label={label} onEscape={() => setOpen(false)}>
+            {options.map((o) => (
+              <SelectMenuOption key={o.value} selected={o.value === value} onSelect={() => { onChange(o.value); setOpen(false); }}>
+                {o.label}
+              </SelectMenuOption>
+            ))}
+          </SelectMenu>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -159,7 +180,8 @@ export function metaChips(file: DocFile, withLink = true) {
 /** A measurement-date folder band: select, name, counts, folder actions, collapse. */
 export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder, onUpload }: {
   date: string; meta?: string; expanded: boolean; onToggle: () => void; compact?: boolean;
-  onAddFolder: () => void; onUpload: () => void;
+  /** Omit both for a folder that takes no uploads (Exports). */
+  onAddFolder?: () => void; onUpload?: () => void;
 }) {
   return (
     <div
@@ -173,7 +195,7 @@ export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder,
       <Text step="m" weight="semiBold">{date}</Text>
       {meta && <Text step="s" tone="tertiary" truncate style={{ flex: 1 }}>{meta}</Text>}
       <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.xs }}>
-        {compact ? (
+        {!onAddFolder && !onUpload ? null : compact ? (
           <>
             <ButtonIcon variant="tertiary" size="s" label={`Add subfolder to ${date}`} onClick={onAddFolder} icon={<Icon size="s" tone="inherit"><icons.CreateNewFolder /></Icon>} />
             <ButtonIcon variant="tertiary" size="s" label={`Upload document to ${date}`} onClick={onUpload} icon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} />

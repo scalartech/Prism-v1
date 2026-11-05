@@ -1,232 +1,161 @@
 /**
- * Documents (firm) › Requests and › Questions — the firm Documents page with
- * its Tier 3 tabs (Documents · Questions · Requests). As on Documents, the left
- * column is All Companies: pick one to see its information request (or its
- * questions) exactly as Company › Documents shows them. With no company picked,
- * the body lists the companies that still owe something; picking one there
- * shows its figures as a card beside the list, so the team sees who to chase.
- * On Questions the card is followed by that company's pending questions,
- * answerable in place.
+ * Documents (firm) › Requests — every company's information request in one
+ * full-width table: pending, resolved / total, due date and last activity,
+ * pending first. Search, fund and status filters sit above it. Picking a
+ * company opens it in company context (Company › Documents › Requests), where
+ * its list, tools and builder live; Back returns here with the search,
+ * filters, sort and scroll position as they were.
  *
- * The company's list, tools and dialogs come from the same hooks as the
- * company pages (`useRequestsWorkspace`, `useQuestionsWorkspace`), so a
- * request reads the same everywhere — including Firm Valuations' Process
- * Management column.
+ * Row 2 holds the tabs (All documents · Requests) in place of a title, so there
+ * is no third nav row. Questions folded into Requests; the old Questions and
+ * company-picked routes redirect (routes.ts › redirectOf).
  *
- * Prototype (proto:firm-requests / proto:firm-questions): no Figma frames yet.
+ * Every figure reads the same live list as the company page (`requestCounts`).
+ *
+ * Prototype (proto:firm-requests): no Figma frames yet.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  Button, Card, CardItem, Chip, EmptyState, Heading, Icon, TertiaryMenu, Text, icons, space,
+  Cell, Chip, ColumnHeader, DataGrid, EmptyState, Icon, Input, Row, RowHeader, Text, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
-import { navigate } from '../../router.js';
+import { href } from '../../router.js';
 import { routes } from '../../routes.js';
 import { AppFrame, scrollBody } from '../../shell/AppFrame.js';
 import { PageHeader } from '../../shell/PageHeader.js';
 import { ToolbarKebab } from '../../shell/Toolbar.js';
 import { ABSENCE_LABEL } from '../../domain/display.js';
-import { useQuestionsWorkspace, type QuestionsWorkspace } from '../p10-company-documents/Questions.js';
-import { useRequestsWorkspace } from '../p10-company-documents/Requests.js';
-import { InfoRequestButton } from '../p10-company-documents/shared.js';
-import { recipientsFor, requestCounts, type RequestCounts } from '../p10-company-documents/requestData.js';
-import { docCompanies, type DocCompany } from './data.js';
-import { CompanyColumn, CompanyRow, ScrollList, columnPanel, FirmDocsTabs, type FirmDocsTab } from './parts.js';
+import { formatDay } from '../prototypes/request-portal/model.js';
+import { requestCounts } from '../p10-company-documents/requestData.js';
+import { docCompanies } from './data.js';
+import { FilterSelect, firmDocsTabs } from './parts.js';
 
-const fmt = (iso?: string) => { if (!iso) return ABSENCE_LABEL['not-entered']; const [y, m, d] = iso.split('-'); return `${m}/${d}/${y}`; };
+type Status = 'all' | 'pending' | 'resolved' | 'none';
+type SortKey = 'company' | 'pending' | 'due' | 'activity';
+interface View { query: string; fund: string; status: Status; sort: { key: SortKey; dir: 'asc' | 'desc' } }
 
-/** What a company row in the left column says for this tab. */
-function pendingWords(n: number, of: number, noun: string) {
-  if (of === 0) return <Text as="span" step="s" tone="tertiary">None sent</Text>;
-  return n
-    ? <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap' }}>{n} pending</Text>
-    : <Text as="span" step="s" tone="positive" style={{ whiteSpace: 'nowrap' }}>{`All ${noun}`}</Text>;
+const DEFAULT_VIEW: View = { query: '', fund: 'all', status: 'all', sort: { key: 'pending', dir: 'desc' } };
+/** Kept for the session, so Back from a company finds the page as it was left. */
+const VIEW_KEY = 'scalar.firm-requests.view';
+const SCROLL_KEY = 'scalar.firm-requests.scroll';
+
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'resolved', label: 'All resolved' },
+  { value: 'none', label: 'None sent' },
+];
+
+function loadView(): View {
+  try { const raw = window.sessionStorage.getItem(VIEW_KEY); if (raw) return { ...DEFAULT_VIEW, ...JSON.parse(raw) as View }; } catch { /* default */ }
+  return DEFAULT_VIEW;
 }
 
-/** Firm chrome shared by both tabs: AppFrame · page header · Tier 3 · companies column + body. */
-function FirmTabFrame({ tab, companyId, end, overlay, columnEnd, children }: {
-  tab: FirmDocsTab;
-  companyId?: string;
-  end?: ReactNode;
-  overlay?: ReactNode;
-  columnEnd: (c: DocCompany) => ReactNode;
-  children: ReactNode;
-}) {
-  const to = tab === 'requests' ? routes.firmDocuments.companyRequests : routes.firmDocuments.companyQuestions;
+const day = (iso?: string) => (iso ? formatDay(iso) : ABSENCE_LABEL['not-entered']);
+
+export function FirmRequests(_props: ScreenProps) {
+  const [view, setView] = useState<View>(loadView);
+  const body = useRef<HTMLElement>(null);
+  useEffect(() => { try { window.sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch { /* ignore */ } }, [view]);
+  // Back from a company puts the list where it was.
+  useLayoutEffect(() => {
+    try { const y = Number(window.sessionStorage.getItem(SCROLL_KEY)); if (y && body.current) body.current.scrollTop = y; } catch { /* ignore */ }
+  }, []);
+  const set = (patch: Partial<View>) => setView((v) => ({ ...v, ...patch }));
+
+  const all = useMemo(() => docCompanies().map((c) => ({ c, n: requestCounts(c.id) })), []);
+  const funds = [...new Set(all.map((r) => r.c.fund).filter((f): f is string => !!f))].sort();
+  const q = view.query.trim().toLowerCase();
+  const statusOf = (n: (typeof all)[number]['n']): Status => (n.total === 0 ? 'none' : n.pending ? 'pending' : 'resolved');
+
+  const rows = all
+    .filter(({ c, n }) => (!q || c.name.toLowerCase().includes(q))
+      && (view.fund === 'all' || c.fund === view.fund)
+      && (view.status === 'all' || statusOf(n) === view.status))
+    .sort((a, b) => {
+      const { key, dir } = view.sort;
+      const sign = dir === 'asc' ? 1 : -1;
+      const due = (x: typeof a) => x.n.dueDate ?? '9999';
+      const by = key === 'company' ? a.c.name.localeCompare(b.c.name)
+        : key === 'due' ? due(a).localeCompare(due(b))
+          : key === 'activity' ? (a.n.lastActivity ?? '').localeCompare(b.n.lastActivity ?? '')
+            : a.n.pending - b.n.pending;
+      // Ties: the default reading — pending first, then the earliest due date.
+      return sign * by || b.n.pending - a.n.pending || due(a).localeCompare(due(b)) || a.c.name.localeCompare(b.c.name);
+    });
+
+  const sortProps = (key: SortKey) => ({
+    sort: view.sort.key === key ? view.sort.dir : null,
+    onSortChange: (dir: 'asc' | 'desc') => set({ sort: { key, dir } }),
+  });
+  const pendingCompanies = all.filter((r) => r.n.pending > 0).length;
+
   return (
-    <AppFrame area="documents" date="03/31/2025" overlay={overlay}>
-      <PageHeader title="Documents" trailing={<ToolbarKebab />} />
-      <TertiaryMenu end={end}>
-        <FirmDocsTabs current={tab} companyId={companyId} />
-      </TertiaryMenu>
-      {/* Every column stretches to the body's height and scrolls inside. */}
-      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
-        <CompanyColumn selectedId={companyId} onSelect={(id) => navigate(to(id))} end={columnEnd} />
-        {/* A picked company's list is one column; the overview boxes its own two columns. */}
-        <section style={{ ...(companyId ? columnPanel : {}), flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
-          {children}
-        </section>
+    <AppFrame area="documents" date="03/31/2025">
+      <PageHeader title={<span className="scalar-visually-hidden">Documents — Requests</span>} tabs={firmDocsTabs} current="requests" trailing={<ToolbarKebab />} />
+      <main
+        ref={body}
+        onScroll={(e) => { try { window.sessionStorage.setItem(SCROLL_KEY, String(e.currentTarget.scrollTop)); } catch { /* ignore */ } }}
+        style={{ ...scrollBody, padding: space.l, display: 'flex', flexDirection: 'column', gap: space.m }}
+      >
+        <div role="toolbar" aria-label="Find companies" style={{ display: 'flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>
+          <div style={{ width: '22vw' }}>
+            <Input
+              aria-label="Find company"
+              placeholder="Find company"
+              value={view.query}
+              onChange={(e) => set({ query: e.target.value })}
+              leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+            />
+          </div>
+          <FilterSelect label="Fund" value={view.fund} onChange={(fund) => set({ fund })}
+            options={[{ value: 'all', label: 'All funds' }, ...funds.map((f) => ({ value: f, label: f }))]} />
+          <FilterSelect label="Status" value={view.status} onChange={(status) => set({ status })} options={STATUS_OPTIONS} />
+          <Text as="span" step="s" tone="secondary" style={{ marginLeft: 'auto' }}>
+            {`${rows.length} of ${all.length} companies · ${pendingCompanies} with requests pending`}
+          </Text>
+        </div>
+
+        {rows.length === 0 ? (
+          <EmptyState
+            type="no-results"
+            title="No companies match"
+            body="Clear the search or the filters to see every company."
+            icon={<Icon size="xl" tone="secondary"><icons.FilterAlt /></Icon>}
+          />
+        ) : (
+          <DataGrid
+            label="Information requests by company"
+            head={
+              <>
+                <ColumnHeader grow={3} {...sortProps('company')}>Company</ColumnHeader>
+                <ColumnHeader>Fund</ColumnHeader>
+                <ColumnHeader numeric {...sortProps('pending')}>Pending</ColumnHeader>
+                <ColumnHeader numeric>Resolved / total</ColumnHeader>
+                <ColumnHeader {...sortProps('due')}>Due date</ColumnHeader>
+                <ColumnHeader {...sortProps('activity')}>Last activity</ColumnHeader>
+              </>
+            }
+          >
+            {rows.map(({ c, n }, i) => (
+              <Row key={c.id} zebra={i % 2 === 1}>
+                <RowHeader href={href(routes.company.requests(c.id))}>{c.name}</RowHeader>
+                <Cell>{c.fund ? <Chip size="s">{c.fund}</Chip> : <Text as="span" step="s" tone="tertiary">{ABSENCE_LABEL['not-entered']}</Text>}</Cell>
+                <Cell numeric>
+                  {n.total === 0
+                    ? <Text as="span" step="s" tone="tertiary">None sent</Text>
+                    : n.pending
+                      ? <Text as="span" step="s" weight="semiBold">{n.pending}</Text>
+                      : <Text as="span" step="s" tone="positive">All resolved</Text>}
+                </Cell>
+                <Cell numeric>{n.total ? `${n.resolved} / ${n.total}` : ABSENCE_LABEL['not-entered']}</Cell>
+                <Cell>{n.total ? day(n.dueDate) : ABSENCE_LABEL['not-entered']}</Cell>
+                <Cell>{day(n.lastActivity)}</Cell>
+              </Row>
+            ))}
+          </DataGrid>
+        )}
       </main>
     </AppFrame>
-  );
-}
-
-/**
- * Every company that still owes something, as one column. Picking one opens
- * its details beside the list as a `Card` (Core/Card › With Tag And Action):
- * the company is the title, what is pending is the tag, the figures are
- * `CardItem` rows and the action opens the company's full list. So the page
- * reads All Companies · pending companies · details.
- */
-function Overview({ tab, openId, setOpenId, live, below }: {
-  tab: FirmDocsTab;
-  openId: string | undefined;
-  setOpenId: (fn: (id: string | undefined) => string | undefined) => void;
-  /** The picked company's question tallies straight from its store (stored counts lag one save). */
-  live?: QuestionsWorkspace['live'];
-  /** Shown under the card in the third column. */
-  below?: ReactNode;
-}) {
-  const questionsTab = tab === 'questions';
-  const rows = docCompanies()
-    .map((c) => {
-      const n = requestCounts(c.id);
-      const fresh = live && c.id === openId ? { ...n, questions: live.sent, questionsAnswered: live.answered } : n;
-      return { c, n: fresh };
-    })
-    .map((r) => ({ ...r, open: questionsTab ? r.n.questions - r.n.questionsAnswered : r.n.pending }))
-    // The picked company stays listed once its last question is answered, so the card doesn't vanish mid-task.
-    .filter((r) => r.open > 0 || r.c.id === openId)
-    .sort((a, b) => b.open - a.open || a.c.name.localeCompare(b.c.name));
-  const picked = rows.find((r) => r.c.id === openId);
-  const to = questionsTab ? routes.firmDocuments.companyQuestions : routes.firmDocuments.companyRequests;
-  const noun = questionsTab ? 'questions' : 'requests';
-
-  const list = (
-    <section aria-labelledby="pending-companies" style={{ ...columnPanel, overflow: 'hidden', flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-      <div>
-        <Heading level={2} step="m" id="pending-companies">{questionsTab ? 'Pending questions' : 'Pending requests'}</Heading>
-        <Text step="s" tone="secondary">
-          {rows.length
-            ? `${rows.length} ${rows.length === 1 ? 'company has' : 'companies have'} ${noun} waiting, most pending first. Pick one to see its details.`
-            : `No company has ${noun} waiting.`}
-        </Text>
-      </div>
-      {rows.length === 0 ? (
-        <EmptyState
-          type="no-results"
-          title="Nothing pending"
-          body={questionsTab ? 'Every question sent has been answered.' : 'Every company has answered everything it was sent.'}
-          icon={<Icon size="xl" tone="secondary"><icons.Inbox /></Icon>}
-        />
-      ) : (
-        <ScrollList noun={['company', 'companies']}>
-          {rows.map(({ c, open }) => (
-            <CompanyRow
-              key={c.id}
-              name={c.name}
-              selected={c.id === openId}
-              onClick={() => setOpenId((id) => (id === c.id ? undefined : c.id))}
-              end={<Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap' }}>{open} pending</Text>}
-            />
-          ))}
-        </ScrollList>
-      )}
-    </section>
-  );
-
-  const details = picked && (() => {
-    const { c, n, open } = picked;
-    const answered = n.questionsAnswered;
-    return (
-      <section aria-label={`${c.name} details`} style={{ ...columnPanel, flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.l }}>
-        <Card
-          title={c.name}
-          headingLevel={2}
-          tag={open ? <Chip styleVariant="warning">{`${open} pending`}</Chip> : <Chip styleVariant="positive">All answered</Chip>}
-          action={
-            <Button variant="tertiary" size="s" trailingIcon={<Icon size="s" tone="inherit"><icons.ArrowForward /></Icon>} onClick={() => navigate(to(c.id))}>
-              {questionsTab ? 'Open questions' : 'Open requests'}
-            </Button>
-          }
-        >
-          <CardItem label="Fund" value={c.fund ?? ABSENCE_LABEL['not-entered']} />
-          {questionsTab ? (
-            <>
-              <CardItem label="Sent" value={n.questions} />
-              <CardItem label="Answered" value={answered} />
-              <CardItem label="Pending" value={n.questions - answered} />
-            </>
-          ) : (
-            <>
-              <CardItem label="Sent" value={n.total} />
-              <CardItem label="Resolved" value={n.resolved} />
-              <CardItem label="Documents pending" value={n.documentsPending} />
-              <CardItem label="Questions pending" value={n.questions - answered} />
-            </>
-          )}
-          <CardItem label="Due" value={fmt(n.dueDate)} />
-          {!questionsTab && <CardItem label="Sent to" value={recipientsFor(c.id).join(', ') || ABSENCE_LABEL['not-entered']} />}
-        </Card>
-        {below}
-      </section>
-    );
-  })();
-
-  return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: space.l, alignItems: 'stretch' }}>
-      {list}
-      {details || (
-        <section aria-label="Company details" style={{ ...columnPanel, flex: '1 1 0', minWidth: 0 }}>
-          <EmptyState
-            title="Pick a company"
-            body={`Choose a company from the list to see its ${noun} here.`}
-            icon={<Icon size="xl" tone="secondary"><icons.Domain /></Icon>}
-          />
-        </section>
-      )}
-    </div>
-  );
-}
-
-const countsOf = (c: DocCompany): RequestCounts => requestCounts(c.id);
-
-export function FirmRequests({ params }: ScreenProps) {
-  const companyId = params.companyId;
-  const picked = companyId ? docCompanies().find((c) => c.id === companyId) : undefined;
-  // Always mounted (hooks), but only shown once a company is picked.
-  const [openId, setOpenId] = useState<string | undefined>();
-  const w = useRequestsWorkspace(companyId, 'default', picked ? `${picked.name} requests` : 'Requests');
-  return (
-    <FirmTabFrame
-      tab="requests"
-      companyId={picked?.id}
-      end={picked && <>{w.tools}<InfoRequestButton companyId={picked.id} /></>}
-      overlay={picked && w.overlay}
-      columnEnd={(c) => { const n = countsOf(c); return pendingWords(n.pending, n.total, 'resolved'); }}
-    >
-      {picked ? <>{w.heading}{w.content}</> : <Overview tab="requests" openId={openId} setOpenId={setOpenId} />}
-    </FirmTabFrame>
-  );
-}
-
-export function FirmQuestions({ params }: ScreenProps) {
-  const companyId = params.companyId;
-  const picked = companyId ? docCompanies().find((c) => c.id === companyId) : undefined;
-  const [openId, setOpenId] = useState<string | undefined>();
-  // One workspace: the company picked on the left, else the one opened in the overview (its pending list sits under the card).
-  const w = useQuestionsWorkspace(companyId ?? openId, 'default', picked ? `${picked.name} questions` : 'Questions');
-  return (
-    <FirmTabFrame
-      tab="questions"
-      companyId={picked?.id}
-      end={picked && <InfoRequestButton companyId={picked.id} />}
-      overlay={(picked || openId) && w.overlay}
-      columnEnd={(c) => { const n = countsOf(c); return pendingWords(n.questions - n.questionsAnswered, n.questions, 'answered'); }}
-    >
-      {picked
-        ? <>{w.heading}{w.content}</>
-        : <Overview tab="questions" openId={openId} setOpenId={setOpenId} live={openId ? w.live : undefined} below={openId && w.pendingList} />}
-    </FirmTabFrame>
   );
 }

@@ -167,18 +167,19 @@ export const formatDay = (iso: string) => {
 };
 
 const FORMAT_GROUPS: [label: string, exts: string[]][] = [
-  ['Excel', ['xlsx', 'xls']], ['Word', ['docx', 'doc']], ['PowerPoint', ['pptx', 'ppt']], ['PDF', ['pdf']], ['CSV', ['csv']],
+  ['PDF', ['pdf']], ['Excel', ['xlsx', 'xls']], ['Word', ['docx', 'doc']], ['PowerPoint', ['pptx', 'ppt']], ['CSV', ['csv']],
 ];
+const OFFICE = ['Excel', 'Word', 'PowerPoint'];
 
-/** The short requirements line: "Up to 250 MB · Office files, PDF, CSV". */
+/** The limits, read before a file is dropped: "PDF, Office, CSV · max 250 MB". */
 export function requirementsLine(r: Pick<InformationRequest, 'allowedExtensions' | 'maxFileSizeBytes'>) {
   const exts = r.allowedExtensions ?? DOC_EXTENSIONS;
   const groups = FORMAT_GROUPS.filter(([, e]) => e.some((x) => exts.includes(x))).map(([l]) => l);
-  const office = ['Excel', 'Word', 'PowerPoint'].every((g) => groups.includes(g));
-  const named = office ? ['Office files', ...groups.filter((g) => !['Excel', 'Word', 'PowerPoint'].includes(g))] : groups;
+  const office = OFFICE.every((g) => groups.includes(g));
+  const named = office ? groups.flatMap((g) => (g === 'Excel' ? ['Office'] : OFFICE.includes(g) ? [] : [g])) : groups;
   const listed = new Set(FORMAT_GROUPS.flatMap(([, e]) => e));
   const others = exts.filter((x) => !listed.has(x)).map((x) => x.toUpperCase());
-  return `Up to ${formatBytes(r.maxFileSizeBytes ?? MAX_FILE_BYTES)} · ${[...named, ...others].join(', ')}`;
+  return `${[...named, ...others].join(', ')} · max ${formatBytes(r.maxFileSizeBytes ?? MAX_FILE_BYTES)}`;
 }
 
 /** Every accepted extension, for the tooltip and the picker's `accept`. */
