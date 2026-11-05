@@ -178,8 +178,10 @@ export function metaChips(file: DocFile, withLink = true) {
 }
 
 /** A measurement-date folder band: select, name, counts, folder actions, collapse. */
-export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder, onUpload }: {
+export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder, onUpload, checked, indeterminate, onCheckedChange }: {
   date: string; meta?: string; expanded: boolean; onToggle: () => void; compact?: boolean;
+  /** Selects every document in the date. Omit for a date with none to select. */
+  checked?: boolean; indeterminate?: boolean; onCheckedChange?: (checked: boolean) => void;
   /** Omit both for a folder that takes no uploads (Exports). */
   onAddFolder?: () => void; onUpload?: () => void;
 }) {
@@ -190,7 +192,14 @@ export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder,
         background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.xs,
       }}
     >
-      <CheckboxItem size="s" aria-label={`Select ${date}`} />
+      <CheckboxItem
+        size="s"
+        aria-label={`Select every document in ${date}`}
+        checked={!!checked}
+        indeterminate={!!indeterminate}
+        disabled={!onCheckedChange}
+        onChange={(e) => onCheckedChange?.(e.target.checked)}
+      />
       <Icon size="s" tone="secondary"><icons.Folder /></Icon>
       <Text step="m" weight="semiBold">{date}</Text>
       {meta && <Text step="s" tone="tertiary" truncate style={{ flex: 1 }}>{meta}</Text>}

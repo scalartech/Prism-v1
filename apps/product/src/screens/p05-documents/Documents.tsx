@@ -184,6 +184,12 @@ export function Documents({ state }: ScreenProps) {
 
   const everyId = allFiles.map((f) => f.id);
   const allChecked = everyId.every((id) => checked.has(id));
+  /** The date that holds the drawn tree: its box selects every document in it. */
+  const dateSelect = {
+    checked: allChecked,
+    indeterminate: !allChecked && checked.size > 0,
+    onCheckedChange: (v: boolean) => setChecked(v ? new Set(everyId) : new Set()),
+  };
   /** The document tools, at the top of the document column (Tier 3 is gone at firm level). */
   const tools = (
     <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
@@ -258,6 +264,7 @@ export function Documents({ state }: ScreenProps) {
                     meta={`${m.documents} documents | ${m.subfolders} subfolders | Requests: ${m.requests.sent} sent, ${m.requests.uploaded} uploaded, ${m.requests.pending} pending`}
                     expanded={open}
                     onToggle={() => setExpandedDates((s) => toggle(s, m.date))}
+                    {...dateSelect}
                     onAddFolder={() => addFolder(m.date)}
                     onUpload={upload}
                   />
@@ -297,6 +304,7 @@ export function Documents({ state }: ScreenProps) {
                       date={d}
                       expanded={open}
                       onToggle={() => setExpandedDates((s) => toggle(s, d))}
+                      {...(i === 0 && company.count > 0 ? dateSelect : {})}
                       onAddFolder={() => addFolder(company.name)}
                       onUpload={upload}
                     />

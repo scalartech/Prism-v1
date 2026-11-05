@@ -190,6 +190,12 @@ export function DocumentList({ state, params }: ScreenProps) {
                   meta={i === 0 ? `${allFiles.length} documents | ${folders.length} subfolder${folders.length === 1 ? '' : 's'}` : undefined}
                   expanded={open}
                   onToggle={() => setExpandedDates((s) => toggle(s, d))}
+                  // Only the company's date holds documents; its box selects all of them.
+                  {...(i === 0 ? {
+                    checked: allChecked,
+                    indeterminate: !allChecked && checked.size > 0,
+                    onCheckedChange: (v: boolean) => setChecked(v ? new Set(everyId) : new Set()),
+                  } : {})}
                   onAddFolder={() => {}}
                   onUpload={() => setUploading(true)}
                 />

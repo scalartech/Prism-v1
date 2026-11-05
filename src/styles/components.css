@@ -542,6 +542,10 @@ select.scalar-field__control { appearance: none; -webkit-appearance: none; curso
 .scalar-choice-field:has(.scalar-choice-input:disabled) { cursor: not-allowed; color: var(--color-text-disabled); }
 .scalar-choice-field__description { display: block; color: var(--color-text-tertiary); font-size: var(--font-size-text-s); line-height: var(--line-height-text-s); }
 .scalar-choice-input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+/* CheckboxItem on its own: the input covers the drawn box, so the box itself is clickable. */
+.scalar-choice-item { position: relative; display: inline-flex; flex: none; }
+.scalar-choice-item > .scalar-choice-input { inset: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer; }
+.scalar-choice-item > .scalar-choice-input:disabled { cursor: not-allowed; }
 
 /* --- Switch ---------------------------------------------------------------- */
 .scalar-switch-field {
