@@ -1,0 +1,4 @@
+# Scalar template: Options & Warrants Schedule · version 2.1 · 2026-09-15
+# One row per grant. Dates as MM/DD/YYYY. Exercise price in USD per share. Leave cancelled grants in with Status = Cancelled.
+Holder Name,Instrument (Option / Warrant / RSU),Grant Date,Shares Granted,Exercise Price (USD),Vesting Start Date,Vesting Schedule,Shares Vested as of Report Date,Shares Exercised,Expiration Date,Status (Outstanding / Exercised / Cancelled),Underlying Class
+Example: Jane Smith,Option,03/01/2024,25000,1.85,03/01/2024,4 yr / 1 yr cliff,9375,0,02/28/2034,Outstanding,Common

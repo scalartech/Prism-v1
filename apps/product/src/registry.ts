@@ -27,8 +27,9 @@ import { screens as protoNotificationsCenter } from './screens/prototypes/notifi
 import { screens as protoApproaches } from './screens/prototypes/approaches/index.js';
 import { screens as protoRespondentPortal } from './screens/prototypes/respondent-portal/index.js';
 import { screens as protoReportComposer } from './screens/prototypes/report-composer/index.js';
+import { screens as protoRequestPortal } from './screens/prototypes/request-portal/index.js';
 
-export const allScreens: ScreenDef[] = [p01Home, p02Intelligence, p03Valuations, p04Waterfalls, p05Documents, p06CompanySummaryFinancials, p07CompanyCapTable, p08CompanyValuations, p09CompanyWaterfall, p10CompanyDocuments, p11CompanyOverviewSettings, p12Account, p13UserManagement, p14CompGroups, p15AuditLogs, p16FirmSettings, protoCompanyOverviewV2, protoCompanyValuationsV2, protoReports, protoNotificationsCenter, protoApproaches, protoRespondentPortal, protoReportComposer].flat();
+export const allScreens: ScreenDef[] = [p01Home, p02Intelligence, p03Valuations, p04Waterfalls, p05Documents, p06CompanySummaryFinancials, p07CompanyCapTable, p08CompanyValuations, p09CompanyWaterfall, p10CompanyDocuments, p11CompanyOverviewSettings, p12Account, p13UserManagement, p14CompGroups, p15AuditLogs, p16FirmSettings, protoCompanyOverviewV2, protoCompanyValuationsV2, protoReports, protoNotificationsCenter, protoApproaches, protoRespondentPortal, protoReportComposer, protoRequestPortal].flat();
 
 export interface Resolved {
   screen: ScreenDef;

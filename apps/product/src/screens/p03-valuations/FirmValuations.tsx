@@ -17,7 +17,8 @@ import { ExportMenuItems, PortfolioHeader, PublishedNote, SavedViewsBar } from '
 import { companyHref, StatusCell } from '../p02-intelligence/cells.js';
 import { columnCatalogue, inFrameOrder } from '../p02-intelligence/data.js';
 import type { Company } from '../../data/fixtures.js';
-import { VALUATIONS_FRAME, tasksOf, valuationColumns, valuationValues } from './data.js';
+import { VALUATIONS_FRAME, valuationColumns, valuationValues } from './data.js';
+import { openTasksOf } from '../p10-company-documents/requestData.js';
 import { BulkMarketDateModal } from '../prototypes/bulk-market-date/BulkMarketDateModal.js';
 import { usFromIso } from '../../domain/model.js';
 import { useMoney } from '../../shell/displayUnit.js';
@@ -26,26 +27,33 @@ const ORDER = inFrameOrder(VALUATIONS_FRAME);
 /** Total columns the catalogue offers (the modal's "N of 140 available"). */
 const AVAILABLE = 140;
 
-/** Open process-management tasks: document requests and questions, each a jump into the company. */
+/**
+ * Open process-management tasks: what the company still owes on its information
+ * request (documents, questions), read live from the same list as Company ›
+ * Documents › Requests. Each pill opens that list, filtered to what is pending
+ * (questions are requests too, so both pills land on Requests).
+ */
 function Tasks({ company }: { company: Company }) {
-  const t = tasksOf(company);
+  const t = openTasksOf(company.id);
   if (!t) return <Text step="s" tone="tertiary">No tasks required</Text>;
   return (
     <span style={{ display: 'inline-flex', gap: space.xs }}>
-      <TaskPill
-        tone="negative"
-        label={`${company.name}: ${t.documents} document request${t.documents === 1 ? '' : 's'} open`}
-        count={t.documents}
-        icon={<icons.Description />}
-        onClick={() => navigate(routes.company.informationRequest(company.id))}
-      />
+      {t.documents > 0 && (
+        <TaskPill
+          tone="negative"
+          label={`${company.name}: ${t.documents} document request${t.documents === 1 ? '' : 's'} open`}
+          count={t.documents}
+          icon={<icons.Description />}
+          onClick={() => navigate(routes.company.requests(company.id), 'pending')}
+        />
+      )}
       {t.questions > 0 && (
         <TaskPill
           tone="negative"
           label={`${company.name}: ${t.questions} open question${t.questions === 1 ? '' : 's'}`}
           count={t.questions}
           icon={<icons.QuestionMark />}
-          onClick={() => navigate(routes.company.questions(company.id))}
+          onClick={() => navigate(routes.company.requests(company.id), 'pending')}
         />
       )}
     </span>

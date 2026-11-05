@@ -45,4 +45,11 @@ describe('Checkbox', () => {
     renderWithProvider(<CheckboxItem ref={ref} aria-label="x" indeterminate />);
     expect(ref.current!.indeterminate).toBe(true);
   });
+  it('puts the input over its drawn box when used on its own, so the box takes clicks', () => {
+    renderWithProvider(<CheckboxItem aria-label="row" />);
+    const input = screen.getByRole('checkbox', { name: 'row' });
+    const wrap = input.parentElement!;
+    expect(wrap).toHaveClass('scalar-choice-item');
+    expect(wrap.querySelector('.scalar-checkbox-box')).not.toBeNull();
+  });
 });

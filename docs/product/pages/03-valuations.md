@@ -18,13 +18,13 @@ Components used: AppFrame, FilterDropdown, ViewTabBar, ViewTab, ContextMenu, Men
 Behaviour & rules:
 - Columns: Valuation Date, Process Management, Valuation Status, Valuation Approaches, Enterprise Value, Equity Value, Breakeven Exit Equity, Allocation Method, Current Fund Value, % Change from Previous. All calculated, read-only, from the company record (equity value, fair value, MOIC, valuation method, stage).
 - Headline values show only when the record's valuation is Final or Published; otherwise shaded Not-Applicable cells. Status is the record's workflow status as a ModalStatus.
-- Process Management shows "No tasks required" or `TaskPill`s — a negative description pill with the count of open document requests (→ the company's Information Request) and a question_mark pill with open questions (→ Questions). Valuations In Progress have open tasks; DataBricks carries the pair drawn in the frame.
+- Process Management shows what the company still owes on its information request, read live from the same list as Company › Documents › Requests and firm Documents › Requests (`openTasksOf`): "No tasks required" when nothing is pending, otherwise `TaskPill`s — a negative description pill with the open document requests (→ the company's Requests, filtered to Pending) and a question_mark pill with the open questions (→ the company's Questions). Each company's request is seeded to match its valuation status (In Progress and DataBricks start with the frame's open tasks; the rest start fully resolved), so the column reads as drawn until someone sends, answers or reopens a request.
 - The "scrolled" frame is the grid scrolled fully right to Add Column. Add Columns: search filters in place, checkboxes pick columns, the footer counts "N of 140 available selected", and **Add Columns** is disabled until at least one is picked.
 - Saved view ⋮ → Edit (opens Add Columns) / Clone / Delete; "+" goes to Intelligence → Create Summary View. Page ⋮: Excel Export, Bulk Actions, PDF Export.
 
 ## Cross-platform links
 - In: Primary Menu → Valuations; Home → Valuations tile.
-- Out: company name → `/companies/:id/valuations/summary`; task buttons → company Information Request / Questions; "+" → Intelligence Summaries (Create Summary View).
+- Out: company name → `/companies/:id/valuations/summary`; task buttons → company Requests (Pending) / Questions; "+" → Intelligence Summaries (Create Summary View).
 - Reuses the Intelligence portfolio grid and chrome (`screens/p02-intelligence/`).
 
 ## Domain rules
@@ -33,4 +33,4 @@ Behaviour & rules:
 
 ## Gaps & open questions
 - SpaceX and Perplexity (drawn in the frame) are not in the database and are skipped; figures and statuses come from the records, not the frame.
-- Task counts are derived (In Progress valuations + DataBricks); the record has no task data.
+- Task counts come from the prototype's request lists (browser storage), seeded from the valuation status; the company record itself has no task data.

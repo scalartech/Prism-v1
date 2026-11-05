@@ -272,7 +272,7 @@ Find the **intent**, not the shape.
 | A count-based goal (3/5 answered) | `ProgressRing` | a `Badge` |
 | A preference that applies at once | `SettingRow` | `CheckboxItem` |
 | Row hierarchy in a financial statement | `RowLabelCell` + `GridValueCell` | bold text in a `Cell` |
-| A file in a list | `FileRow` + `FileTypeBadge` | a `Link` with an icon |
+| A file in a list | `FileRow` + `FileTypeBadge` (dense tree: `layout="inline"` + `typeIndicator="icon"` → `FileTypeIcon`) | a `Link` with an icon |
 | A label/value pair in a description list | `KeyValueRow` | a two-column `DataGrid` |
 | The open menu of a select / picker trigger (≤ ~8 options) | `SelectMenu` + `SelectMenuOption` | a hand-rolled list of `MenuItem`s |
 | Pending tasks on a grid row | `TaskPill` (`label` required) | a coloured dot or a bare `Badge` |
@@ -685,7 +685,7 @@ Rules:
 `DealCard` · `ColorPicker` · `WorkCalendar` · `CalendarTaskCard` · `WorkTimeline` · `PeriodToolbar` ·
 `ValuationModal` · `ValuationSummary` · `ValuationPanel` · `FigureList` · `StepAssignMenu` · `StatusTrigger` ·
 `AssigneeCard` · `AssigneeAvatars` · `NoteCard` · `NoteComposer` ·
-`FileTypeBadge` (+ `fileKindOf`) · `FileRow` · `TreeItem` · `PageStepper` · `ZoomControl` ·
+`FileTypeBadge` (+ `fileKindOf`) · `FileTypeIcon` · `FileRow` · `TreeItem` · `PageStepper` · `ZoomControl` ·
 `DocumentViewerHeader` · `ScrollHintPill` ·
 `Banner` · `Spinner` · `ProgressRing` · `DataFreshness` · `SaveState` ·
 `ConfirmationDialog` · `SettingRow` · `NotificationCenter` · `RowActionToolbar` ·

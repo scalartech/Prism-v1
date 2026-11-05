@@ -18,6 +18,9 @@ export type ProgressBarProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> 
 /**
  * Progress Bar — how far along a task is.
  *
+ * At 100% the fill turns Positive, like the Progress Ring's complete state —
+ * pair it with words ("All 29 resolved") so colour is never the only signal.
+ *
  * `role="progressbar"` with `aria-valuemin/max/now`; indeterminate omits
  * `aria-valuenow`. The sliding animation is switched off under
  * prefers-reduced-motion.
@@ -32,7 +35,7 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(function
   return (
     <div
       ref={ref}
-      className={cx('scalar-progress', indeterminate && 'scalar-progress--indeterminate', className)}
+      className={cx('scalar-progress', indeterminate && 'scalar-progress--indeterminate', clamped === 100 && 'scalar-progress--complete', className)}
       aria-label={label}
       {...rest}
       role="progressbar"

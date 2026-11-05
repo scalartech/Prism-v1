@@ -28,11 +28,12 @@ export const valuationColumns: GridCol[] = [
 ];
 
 /**
- * Open process-management tasks. A valuation still in progress has document
- * requests and questions outstanding; DataBricks carries the pair drawn in the
- * frame.
+ * The open process-management tasks each company's information request starts
+ * with: a valuation still in progress has document requests and questions
+ * outstanding; DataBricks carries the pair drawn in the frame. Only the seed —
+ * the column itself reads the live request list (`openTasksOf`).
  */
-export function tasksOf(c: Company): { documents: number; questions: number } | undefined {
+export function seedTasksOf(c: Company): { documents: number; questions: number } | undefined {
   if (c.id === 'databricks') return { documents: 2, questions: 1 };
   if (workflowStatusOf(c) !== 'in-progress') return undefined;
   return { documents: 1 + (c.securities % 3), questions: c.founded % 3 };

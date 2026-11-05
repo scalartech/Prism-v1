@@ -5,7 +5,7 @@ The firm-wide document library. Analysts and admins use it to find any file the 
 ## Screens
 
 ### Documents — `/documents`
-Browse all measurement-date folders, or pick a company to see its tree and preview a document beside it. Reached from **Documents** in the Primary Menu. The company tab (closable ViewTab) returns to All Documents; "Upload Document" leads to the company's Documents page upload modal (10).
+Browse all measurement-date folders, or pick a company to see its tree and preview a document beside it. Reached from **Documents** in the Primary Menu. Row 2 holds the tabs **All documents · Requests** in place of a page title (the top nav already says Documents; "Documents › Documents" would read as a bug), with the pin and ⋮ right-aligned, so no global Documents view has a third nav row. The same row carries the active tab's tools on its right — on All documents: Select all, Search, Filter, Full screen — then pin and ⋮ (Round 2 §2). Request Document, Upload Document and Request Information are gone from it: upload lives on each date folder, and requests are created inside a company. The All Documents panel has no visible title; the active tab names the view. The company tab (closable ViewTab) returns to All Documents; "Upload Document" leads to the company's Documents page upload modal (10).
 
 | State | Figma frame | Node | Open with |
 |---|---|---|---|
@@ -15,15 +15,32 @@ Browse all measurement-date folders, or pick a company to see its tree and previ
 | add-folder | Documents — Add Folder modal | [19:47312](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=19-47312) | `#/documents?state=add-folder` |
 | parent-folder-picker | Documents — Add Folder · Parent Folder picker | [19:48713](https://www.figma.com/design/cZktZhD0ssL5lRVOvSqmOV/Scalar-full-product?node-id=19-48713) | `#/documents?state=parent-folder-picker` |
 
-Components used: AppFrame/PageHeader (shell), TertiaryMenu, ViewTabBar, ViewTab, Checkbox, CheckboxItem, ButtonIcon, Button, Heading, Text, FilterDropdown, Input, Chip, Badge, ScrollHintPill, TreeItem, FileRow, FileTypeBadge, DocumentViewerHeader, PageStepper, ZoomControl, Spinner, EmptyState, Link, Modal, FormField, ComboboxPanel, Material `icons` (Person, CalendarToday, Link, Folder, UploadFile, KeyboardArrowUp/Down, Search, FilterList, Fullscreen, Description).
+Components used: AppFrame/PageHeader (shell, `tabs` = `firmDocsTabs`), ViewTabBar, ViewTab, Checkbox, CheckboxItem, ButtonIcon, Button, Heading, Text, FilterDropdown, Input, Chip, Badge, ScrollHintPill, TreeItem, FileRow, FileTypeBadge, DocumentViewerHeader, PageStepper, ZoomControl, Spinner, EmptyState, Link, Modal, FormField, ComboboxPanel, Material `icons` (Person, CalendarToday, Link, Folder, UploadFile, KeyboardArrowUp/Down, Search, FilterList, Fullscreen, Description).
 
 Behaviour & rules:
 - Left: All Companies list from `db` — the 16 companies drawn in the frame first, then the rest of the 200 A–Z; fund tag = the record's fund (`db.funds`), document count from the frame (or derived from the record for companies the frame doesn't show). "Find Company" searches with `db.companies.search`; the ScrollHintPill count ("↓ 184 companies") is computed. Every company row opens that company's own tree and links to its own Company · Documents page.
-- All Documents: one band per measurement date (counts + request progress, Add Subfolder, Upload Document, collapse). 03/31/2025 opens to Backside Blocks → root files (uploader, date, linked area chips) → Company Docs / Exports subfolders.
+- All Documents: one band per measurement date (counts + request progress, Add Subfolder, Upload Document, collapse). 03/31/2025 opens to Backside Blocks → root files → Company Docs. System-generated exports are not in the tree: they live on Company › Documents › Exports (10). One line per document (`DocRow`: FileRow `layout="inline"` + `typeIndicator="icon"`, so a type icon instead of the badge and the uploader, date and linked-area chips right-aligned); subfolders are plain `FolderRow`s (checkbox for the whole folder, folder glyph, name, count, collapse arrow at the right) — only measurement dates get the filled band.
 - Company selected: compact tree (icon-only folder actions) and a viewer. Clicking a file shows "Preparing PDF preview…" (Spinner) for ~1.2s, then the page with PageStepper (1/12) and ZoomControl (100%, Fit). With no file chosen the viewer is an EmptyState.
-- Add Folder: opened from a date band's add-folder action. Parent Folder is a read-only field that opens a ComboboxPanel (in flow, because the modal body clips overflow) ("Find a Folder": No Folder, Company Docs, Exports); Folder Name required — Create Folder stays disabled until it is filled; the new folder is appended to the tree. Scrim click does not dismiss once a name is typed.
-- "Select all documents" checks every file row; indeterminate when some are checked.
+- Add Folder: opened from a date band's add-folder action. Parent Folder is a read-only field that opens a ComboboxPanel (in flow, because the modal body clips overflow) ("Find a Folder": No Folder, Company Docs); Folder Name required — Create Folder stays disabled until it is filled; the new folder is appended to the tree. Scrim click does not dismiss once a name is typed.
+- "Select all" checks every file row; indeterminate when some are checked.
 - Viewer body text is placeholder copy, not the real PDF.
+
+### Requests — `/documents/requests` (prototype state)
+**List + detail** (Round 2 §1, replacing the Nov 4 full-width table): a firm admin picks a company on the left and answers or uploads its requests on the right, without leaving the page.
+
+- **Left — one company list** (`CompanyListPanel`, about 360 px): Find company, Fund, a *With pending only* switch (on by default) and the "N of 200 companies · N with requests pending" count. Each row: name, fund chip, pending count (a check when all resolved). Sort: pending first, then the nearest due date, then name. ↑/↓ move the selection.
+- **Right — the company's requests**: the company Requests tab's own workspace (`useRequestsWorkspace(…, { firm: true })`), so inline answers, file names, Yes / No, upload, template, N/A and Delegate behave exactly as there. Above it: the company name and *Open company* (→ `#/companies/:id/documents/requests`, the only way into company context), then the meter, Expand, Status, Select All, Bulk actions and Due date. No Fund filter here — Fund belongs to the list. The introduction starts folded to one line ("Introduction from Scalar ▸"). When the last pending request is resolved: "All requests resolved · Next company with pending requests →".
+- `#/documents/requests` selects the first company with pending requests; `#/documents/requests/:companyId` deep-links one (selecting updates the address without navigating). Search, filters and selection survive Back (sessionStorage).
+- Row 2 on this tab holds nothing beyond the tabs, pin and ⋮: the request tools act on one company, so they live in the right pane.
+- **Questions folded into Requests** at both levels: requests already carry questions (Yes / No, written answer, multiple choice, date). `#/documents/questions` → firm Requests, `#/documents/questions/:id` → firm Requests with that company, `#/companies/:id/documents/questions` → company Requests (`routes.ts › redirectOf`).
+- View as: Client user (prototype panel) switches the copy to the respondent's ("Your saved answer") and hides the due-date edit.
+
+| State | Label | Node |
+|---|---|---|
+| default (`/documents/requests`) | Requests — company list + request pane | proto:firm-requests:1 |
+| default (`/documents/requests/:companyId`) | Requests — one company open | proto:firm-requests:2 |
+
+Every count here, on the company pages and in Firm Valuations › Process Management reads the same per-company request list.
 
 ## Cross-platform links
 - In: Primary Menu → Documents; Waterfalls Workspace drawer file rows (04); company Documents row menu "Open in viewer" (10).
@@ -36,4 +53,5 @@ Behaviour & rules:
 - The tree's files are the frame's Backside Blocks set for every company (export names carry the company's name); per-company file data is not in the db.
 - "Filter by Fund" shows the value in force ("All funds"); the fund filter menu is not built.
 - Search / Filter / Full-screen toolbar icons and the viewer's download/copy/rename/delete are inert. Viewer body is placeholder copy.
-
+- Tier 3 was "All Documents" + the selected company's name in the frames; the firm level now has no Tier 3 — its tabs (All documents · Requests) are in row 2. "All Documents" is a button beside the selected company's name.
+- Release note for the Questions → Requests fold: a production migration turns each question into a request (text, answer, author, dates kept; Written answer unless it has a structured type; its category, or "9. Other"). Unanswered questions become pending requests, so some companies' pending counts rise. In the prototype questions were already requests in the same list, so nothing moves.

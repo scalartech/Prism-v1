@@ -4,13 +4,16 @@
  * choosing a company narrows to that company's tree and opens a document
  * preview beside it.
  *
+ * Row 2 holds the tabs — All documents · Requests — in place of a page title
+ * (the top nav already says Documents), so no global Documents view has a
+ * third nav row. The same row carries the active tab's tools on its right
+ * (Select all, Search, Filter, Full screen), then pin and ⋮.
+ *
  * Figma: 05 · Documents (Firm) → All Documents · Company Documents · Viewer & Add Folder (5 frames).
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Badge, Button, ButtonIcon, Checkbox, CheckboxItem, Chip, ComboboxPanel, DocumentViewerHeader, EmptyState,
-  FileRow, FilterDropdown, FormField, Heading, Icon, Input, Link, Modal, PageStepper, ScrollHintPill, Spinner,
-  TertiaryMenu, TertiaryMenuItem, Text, TreeItem, ZoomControl, color, elevation, icons, radius, space,
+  Badge, Button, ButtonIcon, Checkbox, ComboboxPanel, EmptyState, FormField, Heading, Icon, Input, Link, Modal, ScrollHintPill, Text, TreeItem, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { href, navigate } from '../../router.js';
@@ -20,83 +23,14 @@ import { PageHeader } from '../../shell/PageHeader.js';
 import { ToolbarKebab } from '../../shell/Toolbar.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
 import {
-  VISIBLE_COMPANIES, allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
-  type DocFile, type DocFolder,
+  allFilesFor, companyDates, docCompanies, measurementDates, rootFiles, subfoldersFor,
+  type DocFolder,
 } from './data.js';
+import { CompanyColumn, DateBand, DocRow, FolderRow, columnPanel, firmDocsTabs, Viewer, metaChips } from './parts.js';
 
 const PREVIEW_MS = 1200;
 /** The company drawn open in the frames (All Documents → 03/31/2025, and the company-selected states). */
 const FRAME_COMPANY = 'backside-blocks';
-
-/* --- small composed pieces (no DS equivalent) ------------------------------ */
-
-function metaChips(file: DocFile, withLink = true) {
-  return [
-    { icon: <Icon size="xs" tone="inherit"><icons.Person /></Icon>, label: file.uploader },
-    { icon: <Icon size="xs" tone="inherit"><icons.CalendarToday /></Icon>, label: file.date },
-    ...(withLink && file.link ? [{ icon: <Icon size="xs" tone="inherit"><icons.Link /></Icon>, label: file.link }] : []),
-  ];
-}
-
-/** One company in the left list: name, fund tag and document count. */
-function CompanyRow({ name, fund, count, selected, onClick }: {
-  name: string; fund?: string; count: number; selected: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: space.s, width: '100%',
-        padding: `${space.s} ${space.m}`, borderRadius: radius.xs, cursor: 'pointer', textAlign: 'left',
-        background: selected ? color.bg.brandSubtle : color.bg.surface,
-        border: `1px solid ${selected ? color.stroke.brand : color.stroke.control}`,
-      }}
-    >
-      <Text step="m" tone={selected ? 'brand' : 'primary'} truncate style={{ flex: 1 }}>{name}</Text>
-      {fund && <Chip styleVariant="default">{fund}</Chip>}
-      <Badge>{count}</Badge>
-    </button>
-  );
-}
-
-/** A measurement-date folder band: select, name, counts, folder actions, collapse. */
-function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder, onUpload }: {
-  date: string; meta?: string; expanded: boolean; onToggle: () => void; compact?: boolean;
-  onAddFolder: () => void; onUpload: () => void;
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: space.s, padding: `${space.xs} ${space.m}`,
-        background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.xs,
-      }}
-    >
-      <CheckboxItem size="s" aria-label={`Select ${date}`} />
-      <Icon size="s" tone="secondary"><icons.Folder /></Icon>
-      <Text step="m" weight="semiBold">{date}</Text>
-      {meta && <Text step="s" tone="tertiary" truncate style={{ flex: 1 }}>{meta}</Text>}
-      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.xs }}>
-        {compact ? (
-          <>
-            <ButtonIcon variant="tertiary" size="s" label={`Add subfolder to ${date}`} onClick={onAddFolder} icon={<Icon size="s" tone="inherit"><icons.CreateNewFolder /></Icon>} />
-            <ButtonIcon variant="tertiary" size="s" label={`Upload document to ${date}`} onClick={onUpload} icon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} />
-          </>
-        ) : (
-          <>
-            <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.CreateNewFolder /></Icon>} onClick={onAddFolder}>Add Subfolder</Button>
-            <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} onClick={onUpload}>Upload Document</Button>
-          </>
-        )}
-        <ButtonIcon
-          variant="tertiary" size="s" label={expanded ? `Collapse ${date}` : `Expand ${date}`} onClick={onToggle}
-          icon={<Icon size="s" tone="inherit">{expanded ? <icons.KeyboardArrowUp /> : <icons.KeyboardArrowDown />}</Icon>}
-        />
-      </span>
-    </div>
-  );
-}
 
 /* --- Add Folder modal ------------------------------------------------------ */
 
@@ -174,73 +108,6 @@ function AddFolderModal({ open, target, folders, pickerInitiallyOpen, onClose, o
   );
 }
 
-/* --- viewer ---------------------------------------------------------------- */
-
-function Viewer({ file, loading, onClose }: { file: DocFile; loading: boolean; onClose: () => void }) {
-  const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(100);
-  return (
-    <section aria-label="Document preview" style={{ display: 'flex', flexDirection: 'column', gap: space.s, flex: 1, minWidth: 0 }}>
-      <DocumentViewerHeader
-        fileName={file.name}
-        meta={
-          <span style={{ display: 'inline-flex', gap: space.xs }}>
-            <Chip styleVariant="default">{file.uploader}</Chip>
-            <Chip styleVariant="default">{file.date}</Chip>
-          </span>
-        }
-        onDownload={() => {}}
-        onCopyLink={() => {}}
-        onRename={() => {}}
-        onDelete={() => {}}
-        onExpand={() => {}}
-        onClose={onClose}
-      />
-      <div
-        style={{
-          flex: 1, display: 'flex', flexDirection: 'column', gap: space.m, padding: space.m,
-          background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.s,
-        }}
-      >
-        {loading ? (
-          <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space['4xl'] }}>
-            <Spinner size="l" label="Preparing PDF preview" />
-            <Text step="m" tone="secondary">Preparing PDF preview…</Text>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <PageStepper page={page} total={12} onChange={setPage} />
-              <ZoomControl value={zoom} onChange={setZoom} onFit={() => setZoom(100)} />
-            </div>
-            <article
-              aria-label={`Page ${page} of 12`}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: space.l, padding: space['2xl'],
-                background: color.bg.surface, border: `1px solid ${color.stroke.default}`,
-                borderRadius: radius.xs, boxShadow: elevation.raised,
-              }}
-            >
-              <Heading level={2} step="3xl">Django</Heading>
-              <Text step="l" tone="secondary">Documentation</Text>
-              <Heading level={3} step="2xl" weight="regular">Advanced testing topics</Heading>
-              <Heading level={4} step="l" weight="regular">The request factory</Heading>
-              <Text step="m">
-                Preview of page {page}. The rendered PDF appears here at {zoom}% — use the page stepper to move
-                through the document and the zoom control to fit it to the pane.
-              </Text>
-              <Text step="m" tone="secondary">
-                The document stays linked to its company and measurement date, so it also appears in the company’s
-                Documents tab and in the Workspace drawer on its Waterfall and Valuations pages.
-              </Text>
-            </article>
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
 /* --- the screen ------------------------------------------------------------ */
 
 export function Documents({ state }: ScreenProps) {
@@ -254,7 +121,6 @@ export function Documents({ state }: ScreenProps) {
   const [modalTarget, setModalTarget] = useState('');
   const [extraFolders, setExtraFolders] = useState<DocFolder[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState('');
   const timer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -265,7 +131,6 @@ export function Documents({ state }: ScreenProps) {
   const folders = [...subfoldersFor(treeCompany.name), ...extraFolders];
   const allFiles = allFilesFor(treeCompany.name);
   const file = allFiles.find((f) => f.id === fileId);
-  const shownCompanies = query ? docCompanies(query) : listed;
 
   const openFile = (id: string) => {
     if (!companyId) setCompanyId(FRAME_COMPANY);
@@ -279,46 +144,38 @@ export function Documents({ state }: ScreenProps) {
   const addFolder = (target: string) => { setModalTarget(target); setModalOpen(true); };
   const upload = () => navigate(routes.company.documents(companyId ?? FRAME_COMPANY), 'upload');
 
-  /** Company → root files → subfolders, as a tree of rows. */
+  /** Company → root files → subfolders: one line per document, plain folder rows (`DocRow`, `FolderRow`). */
+  const docRow = (f: (typeof allFiles)[number], compact: boolean) => (
+    <DocRow
+      key={f.id}
+      name={f.name}
+      meta={compact ? undefined : metaChips(f)}
+      checked={checked.has(f.id)}
+      onCheckedChange={check(f.id)}
+      selected={f.id === fileId}
+      onOpen={() => openFile(f.id)}
+    />
+  );
   const tree = (compact: boolean): ReactNode => (
-    <div role="tree" aria-label={`${treeCompany.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
-      {rootFiles.map((f) => (
-        <FileRow
-          key={f.id}
-          name={f.name}
-          meta={compact ? undefined : metaChips(f)}
-          draggable
-          checked={checked.has(f.id)}
-          onCheckedChange={check(f.id)}
-          selected={f.id === fileId}
-          onOpen={() => openFile(f.id)}
-        />
-      ))}
+    <div role="group" aria-label={`${treeCompany.name} documents`} style={{ display: 'flex', flexDirection: 'column' }}>
+      {rootFiles.map((f) => docRow(f, compact))}
       {folders.map((folder) => {
         const open = !collapsed.has(folder.id);
+        const ids = folder.files.map((f) => f.id);
+        const some = ids.filter((id) => checked.has(id)).length;
         return (
           <div key={folder.id}>
-            <TreeItem
-              type="folder"
-              level={1}
-              expanded={open}
+            <FolderRow
+              name={folder.name}
               count={folder.files.length || undefined}
+              expanded={open}
               onToggle={() => setCollapsed((s) => toggle(s, folder.id))}
-            >
-              {folder.name}
-            </TreeItem>
+              checked={ids.length > 0 && some === ids.length}
+              indeterminate={some > 0 && some < ids.length}
+              onCheckedChange={(v) => setChecked((s) => { const n = new Set(s); ids.forEach((id) => (v ? n.add(id) : n.delete(id))); return n; })}
+            />
             {open && folder.files.map((f) => (
-              <div key={f.id} style={{ paddingLeft: space.xl }}>
-                <FileRow
-                  name={f.name}
-                  meta={compact ? undefined : metaChips(f)}
-                  draggable
-                  checked={checked.has(f.id)}
-                  onCheckedChange={check(f.id)}
-                  selected={f.id === fileId}
-                  onOpen={() => openFile(f.id)}
-                />
-              </div>
+              <div key={f.id} style={{ paddingLeft: space.xl }}>{docRow(f, compact)}</div>
             ))}
           </div>
         );
@@ -328,6 +185,31 @@ export function Documents({ state }: ScreenProps) {
 
   const everyId = allFiles.map((f) => f.id);
   const allChecked = everyId.every((id) => checked.has(id));
+  /** The date that holds the drawn tree: its box selects every document in it. */
+  const dateSelect = {
+    checked: allChecked,
+    indeterminate: !allChecked && checked.size > 0,
+    onCheckedChange: (v: boolean) => setChecked(v ? new Set(everyId) : new Set()),
+  };
+  /**
+   * The document tools, on the tab row's right (Round 2 §2): the row that holds
+   * All documents · Requests carries the active tab's tools, then pin and ⋮.
+   */
+  const tools = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
+      <Checkbox
+        size="s"
+        checked={allChecked}
+        indeterminate={!allChecked && checked.size > 0}
+        onChange={(e) => setChecked(e.target.checked ? new Set(everyId) : new Set())}
+      >
+        Select all
+      </Checkbox>
+      <ButtonIcon variant="tertiary" size="xs" label="Search documents" icon={<Icon size="s" tone="secondary"><icons.Search /></Icon>} />
+      <ButtonIcon variant="tertiary" size="xs" label="Filter documents" icon={<Icon size="s" tone="secondary"><icons.FilterList /></Icon>} />
+      <ButtonIcon variant="tertiary" size="xs" label="Full screen" icon={<Icon size="s" tone="secondary"><icons.Fullscreen /></Icon>} />
+    </span>
+  );
 
   return (
     <AppFrame
@@ -350,75 +232,25 @@ export function Documents({ state }: ScreenProps) {
       }
     >
       <PageHeader
-        title="Documents"
+        title={<span className="scalar-visually-hidden">Documents</span>}
+        tabs={firmDocsTabs}
+        current="documents"
         trailing={<ToolbarKebab />}
-        actions={
-          <>
-            <Button variant="secondary" size="xs" leadingIcon={<Icon size="s" tone="inherit"><icons.Description /></Icon>}>Request Document</Button>
-            <Button variant="primary" size="xs" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>}>Upload Document</Button>
-            <Button variant="primary" tone="positive" size="xs">Request Information</Button>
-          </>
-        }
+        actions={tools}
       />
-      <TertiaryMenu
-        end={
-          <>
-            <Checkbox
-              size="s"
-              checked={allChecked}
-              indeterminate={!allChecked && checked.size > 0}
-              onChange={(e) => setChecked(e.target.checked ? new Set(everyId) : new Set())}
-            >
-              Select all documents
-            </Checkbox>
-            <ButtonIcon variant="tertiary" size="xs" label="Search documents" icon={<Icon size="s" tone="secondary"><icons.Search /></Icon>} />
-            <ButtonIcon variant="tertiary" size="xs" label="Filter documents" icon={<Icon size="s" tone="secondary"><icons.FilterList /></Icon>} />
-            <ButtonIcon variant="tertiary" size="xs" label="Full screen" icon={<Icon size="s" tone="secondary"><icons.Fullscreen /></Icon>} />
-          </>
-        }
-      >
-        <TertiaryMenuItem current={!company} menu={false} onClick={() => { setCompanyId(undefined); setFileId(undefined); }}>All Documents</TertiaryMenuItem>
-        {company && <TertiaryMenuItem current menu={false}>{company.name}</TertiaryMenuItem>}
-      </TertiaryMenu>
 
-      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'flex-start' }}>
-        {/* Companies */}
-        <section aria-label="All Companies" style={{ flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Heading level={2} step="m">All Companies</Heading>
-            <FilterDropdown>All funds</FilterDropdown>
-          </div>
-          <Input
-            aria-label="Find company"
-            placeholder="Find Company"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs, maxHeight: '70vh', overflow: 'auto', position: 'relative' }}>
-            {shownCompanies.map((c) => (
-              <CompanyRow
-                key={c.id}
-                name={c.name}
-                fund={c.fund}
-                count={c.count}
-                selected={c.id === companyId}
-                onClick={() => { setCompanyId(c.id); setFileId(undefined); setLoading(false); }}
-              />
-            ))}
-            {shownCompanies.length > VISIBLE_COMPANIES && (
-              <div style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs }}>
-                <ScrollHintPill>{shownCompanies.length - VISIBLE_COMPANIES} companies</ScrollHintPill>
-              </div>
-            )}
-            {!shownCompanies.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
-          </div>
-        </section>
+      <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
+        <CompanyColumn
+          selectedId={companyId}
+          end={(c) => <Badge>{c.count}</Badge>}
+          onSelect={(id) => { setCompanyId(id); setFileId(undefined); setLoading(false); }}
+        />
 
         {!company ? (
           /* All Documents — every measurement date */
-          <section aria-label="All Documents" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-            <Heading level={2} step="m">All Documents</Heading>
+          <section aria-label="All Documents" style={{ ...columnPanel, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+            {/* The active tab names the view on screen; screen readers still get a heading. */}
+            <h2 className="scalar-visually-hidden">All documents</h2>
             {measurementDates.map((m) => {
               const open = expandedDates.has(m.date);
               return (
@@ -428,6 +260,7 @@ export function Documents({ state }: ScreenProps) {
                     meta={`${m.documents} documents | ${m.subfolders} subfolders | Requests: ${m.requests.sent} sent, ${m.requests.uploaded} uploaded, ${m.requests.pending} pending`}
                     expanded={open}
                     onToggle={() => setExpandedDates((s) => toggle(s, m.date))}
+                    {...dateSelect}
                     onAddFolder={() => addFolder(m.date)}
                     onUpload={upload}
                   />
@@ -449,8 +282,14 @@ export function Documents({ state }: ScreenProps) {
         ) : (
           <>
             {/* One company's tree */}
-            <section aria-label={`${company.name} documents`} style={{ flex: '0 0 24%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-              <Heading level={2} step="m">{company.name}</Heading>
+            <section aria-label={`${company.name} documents`} style={{ ...columnPanel, flex: '0 0 24%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.s }}>
+                <Heading level={2} step="m">{company.name}</Heading>
+                <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.ArrowBack /></Icon>}
+                  onClick={() => { setCompanyId(undefined); setFileId(undefined); }}>
+                  All Documents
+                </Button>
+              </div>
               {companyDates.map((d, i) => {
                 const open = expandedDates.has(d);
                 return (
@@ -460,6 +299,7 @@ export function Documents({ state }: ScreenProps) {
                       date={d}
                       expanded={open}
                       onToggle={() => setExpandedDates((s) => toggle(s, d))}
+                      {...(i === 0 && company.count > 0 ? dateSelect : {})}
                       onAddFolder={() => addFolder(company.name)}
                       onUpload={upload}
                     />
@@ -474,7 +314,7 @@ export function Documents({ state }: ScreenProps) {
             {file ? (
               <Viewer key={file.id} file={file} loading={loading} onClose={() => setFileId(undefined)} />
             ) : (
-              <section style={{ flex: 1 }}>
+              <section aria-label="Document preview" style={{ ...columnPanel, flex: 1, minWidth: 0 }}>
                 <EmptyState
                   title="Select a document to preview"
                   body={`Pick a file from ${company.name}’s folders to open it here.`}

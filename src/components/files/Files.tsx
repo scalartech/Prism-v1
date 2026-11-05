@@ -52,6 +52,41 @@ export const FileTypeBadge = forwardRef<HTMLSpanElement, FileTypeBadgeProps>(fun
 });
 
 /* ---------------------------------------------------------------------------
+ * File Type Icon
+ * ------------------------------------------------------------------------ */
+
+const KIND_GLYPH: Record<FileKind, () => ReactNode> = {
+  pdf: () => <m.PictureAsPdf />,
+  word: () => <m.Description />,
+  sheet: () => <m.GridOn />,
+  image: () => <m.Image />,
+  text: () => <m.Article />,
+  generic: () => <m.Description />,
+};
+
+export interface FileTypeIconProps extends HTMLAttributes<HTMLSpanElement> {
+  /** File name or extension ("report.pdf", "xlsx"). */
+  file: string;
+}
+
+/**
+ * File Type Icon — the quieter sibling of File Type Badge: a format glyph in
+ * the File/* text colour, for dense single-line lists. Decorative; the file
+ * name next to it carries the extension (R8).
+ */
+export const FileTypeIcon = forwardRef<HTMLSpanElement, FileTypeIconProps>(function FileTypeIcon(
+  { file, className, ...rest },
+  ref,
+) {
+  const kind = fileKindOf(file);
+  return (
+    <span ref={ref} aria-hidden className={cx('scalar-file-icon', `scalar-file-icon--${kind}`, className)} {...rest}>
+      <Icon size="s" tone="inherit">{KIND_GLYPH[kind]()}</Icon>
+    </span>
+  );
+});
+
+/* ---------------------------------------------------------------------------
  * File Row
  * ------------------------------------------------------------------------ */
 
@@ -82,22 +117,29 @@ export interface FileRowProps extends Omit<HTMLAttributes<HTMLDivElement>, 'drag
   onMenu?: () => void;
   /** Glyph for the download action (default `download`), e.g. `icons.CloudDownload`. */
   downloadIcon?: ReactNode;
+  /**
+   * `stacked` (default): meta chips on a second line under the name.
+   * `inline`: one line — name on the left, meta chips right-aligned.
+   */
+  layout?: 'stacked' | 'inline';
+  /** `badge` (default): the coloured extension badge. `icon`: a File Type Icon. */
+  typeIndicator?: 'badge' | 'icon';
 }
 
 /** File Row — one document in a file list or folder. */
 export const FileRow = forwardRef<HTMLDivElement, FileRowProps>(function FileRow(
-  { name, meta, selected, checked, defaultChecked, onCheckedChange, draggable, onMove, onOpen, onDownload, onMenu, downloadIcon, className, ...rest },
+  { name, meta, selected, checked, defaultChecked, onCheckedChange, draggable, onMove, onOpen, onDownload, onMenu, downloadIcon, layout = 'stacked', typeIndicator = 'badge', className, ...rest },
   ref,
 ) {
   const [isChecked, setChecked] = useControllableState(checked, !!defaultChecked, onCheckedChange);
   const showCheckbox = onCheckedChange != null || checked !== undefined || defaultChecked !== undefined;
   return (
-    <div ref={ref} aria-current={selected ? 'true' : undefined} className={cx('scalar-file-row', selected && 'scalar-file-row--selected', className)} {...rest}>
+    <div ref={ref} aria-current={selected ? 'true' : undefined} className={cx('scalar-file-row', layout === 'inline' && 'scalar-file-row--inline', selected && 'scalar-file-row--selected', className)} {...rest}>
       {showCheckbox && <CheckboxItem size="s" checked={isChecked} onChange={(e) => setChecked(e.target.checked)} aria-label={`Select ${name}`} />}
       {draggable && (onMove
         ? <ButtonIcon variant="tertiary" size="s" label={`Move ${name}`} onClick={onMove} icon={<Icon size="xs" tone="inherit"><DragHandle /></Icon>} />
         : <span className="scalar-file-row__drag" aria-hidden><Icon size="xs" tone="inherit"><DragHandle /></Icon></span>)}
-      <FileTypeBadge file={name} />
+      {typeIndicator === 'icon' ? <FileTypeIcon file={name} /> : <FileTypeBadge file={name} />}
       <button type="button" className="scalar-file-row__main" onClick={onOpen}>
         <span className="scalar-file-row__name">{name}</span>
         {meta && (

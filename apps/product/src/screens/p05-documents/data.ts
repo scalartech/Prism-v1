@@ -70,7 +70,12 @@ export const rootFiles: DocFile[] = [
   f('d10', 'volcano-eruption-2021-08-29-00-10-20-utc.zip', 'Steven Hansen', '02/06/2023'),
 ];
 
-export const subfoldersFor = (companyName: string): DocFolder[] => [
+/**
+ * A company's uploaded subfolders. System-generated exports are not here: they
+ * moved to Company › Documents › Exports (by origin, so a user-made "Exports"
+ * folder holding uploads would stay).
+ */
+export const subfoldersFor = (_companyName: string): DocFolder[] => [
   {
     id: 'company-docs',
     name: 'Company Docs',
@@ -78,16 +83,6 @@ export const subfoldersFor = (companyName: string): DocFolder[] => [
       f('c1', 'B&H Invoice.pdf', 'Steven Hansen', '02/06/2023'),
       f('c2', 'OPM and Waterfall.xlsx', 'Steven Hansen', '02/06/2023'),
       f('c3', 'Screenshot 2023-02-02 at 8.52.02 PM.png', 'Steven Hansen', '02/06/2023'),
-    ],
-  },
-  {
-    id: 'exports',
-    name: 'Exports',
-    files: [
-      f('e1', `${companyName}_Financials_281_2025-03-31.xlsx`, 'Steven Hansen', '03/31/2025'),
-      f('e2', `${companyName}_Financials_281_2025-03-31 (1).xlsx`, 'Steven Hansen', '03/31/2025'),
-      f('e3', `${companyName}_Financials_5388_2025-03-31.xlsx`, 'Steven Hansen', '03/31/2025'),
-      f('e4', `${companyName}_Financials_5388_2025-03-31 (1).xlsx`, 'Steven Hansen', '03/31/2025'),
     ],
   },
 ];

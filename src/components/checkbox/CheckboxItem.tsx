@@ -37,8 +37,10 @@ export const CheckboxItem = forwardRef<HTMLInputElement, CheckboxItemProps>(func
   }, [indeterminate]);
   const setRefs = useMemo(() => composeRefs<HTMLInputElement>(inner, ref), [ref]);
 
+  // The wrapper puts the (invisible) input over the drawn box, so the box takes clicks on its own —
+  // in a file row, a folder row or a date band — not only inside a wrapping <label>.
   return (
-    <>
+    <span className="scalar-choice-item">
       <input
         ref={setRefs}
         type="checkbox"
@@ -52,6 +54,6 @@ export const CheckboxItem = forwardRef<HTMLInputElement, CheckboxItemProps>(func
           {indeterminate ? <Minus /> : <Check />}
         </Icon>
       </span>
-    </>
+    </span>
   );
 });

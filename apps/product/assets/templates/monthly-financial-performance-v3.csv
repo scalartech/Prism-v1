@@ -1,0 +1,4 @@
+# Scalar template: Monthly Financial Performance · version 3.0 · 2026-09-15
+# One row per month, most recent 24 months through the Report Date. Amounts in USD, not thousands. Use negative numbers for losses.
+Month (MM/YYYY),Revenue,Cost of Revenue,Gross Profit,Operating Expenses,EBITDA,Net Income,Cash and Equivalents (month end),Headcount (month end),Notes
+Example: 06/2026,1250000,475000,775000,910000,-135000,-162000,8400000,64,

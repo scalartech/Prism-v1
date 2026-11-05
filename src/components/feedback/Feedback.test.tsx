@@ -95,6 +95,11 @@ describe('ProgressBar', () => {
     renderWithProvider(<ProgressBar label="Working" />);
     expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
   });
+  it('marks a full bar complete, and only a full one', () => {
+    renderWithProvider(<><ProgressBar label="Done" value={100} /><ProgressBar label="Half" value={50} /></>);
+    expect(screen.getByRole('progressbar', { name: 'Done' })).toHaveClass('scalar-progress--complete');
+    expect(screen.getByRole('progressbar', { name: 'Half' })).not.toHaveClass('scalar-progress--complete');
+  });
 });
 
 describe('Skeleton', () => {

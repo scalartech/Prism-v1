@@ -6,6 +6,7 @@
  */
 import { useEffect } from 'react';
 import { useLocation, navigate } from './router.js';
+import { redirectOf } from './routes.js';
 import { resolve, byFigmaNode, examplePath } from './registry.js';
 import { Catalog } from './Catalog.js';
 import { NotFound } from './NotFound.js';
@@ -24,14 +25,20 @@ export function App() {
 
   useEffect(() => { window.scrollTo(0, 0); }, [path]);
 
-  const hit = path === '/catalog' || figma ? undefined : resolve(path, query.get('state'));
+  // A moved path replaces itself in history, so Back doesn't bounce through it.
+  const moved = redirectOf(path);
+  useEffect(() => {
+    if (moved) window.location.replace(`#${moved}${query.toString() ? `?${query}` : ''}`);
+  }, [moved, query]);
+
+  const hit = path === '/catalog' || figma || moved ? undefined : resolve(path, query.get('state'));
   const companyId = hit?.params.companyId;
   // The company's measurement + versions. Changing either remounts the screen, so
   // its local edits start from the newly selected version — never the old one (P4).
   const contextKey = useContextKey(companyId ? companyById(companyId) : undefined);
 
   if (path === '/catalog') return <Catalog />;
-  if (figma) return null;
+  if (figma || moved) return null;
   if (!hit) return <NotFound path={path} />;
   const Screen = hit.screen.component;
   // key: remount on state change so local UI state starts from the frame.

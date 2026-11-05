@@ -1,0 +1,416 @@
+/**
+ * Pieces of the Documents layout shared by the firm Documents page and
+ * Company · Documents: the measurement-date band, file meta chips and the
+ * document preview.
+ */
+import { Children, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  SelectMenu, SelectMenuOption, zIndex,
+  Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FileRow, FilterDropdown, Heading, Icon, Input,
+  PageStepper, ScrollHintPill, Spinner, Text, ZoomControl, color, elevation, icons, radius, size, space,
+  type FileRowProps,
+} from '@scalar/design-system';
+import type { PageTab } from '../../shell/PageHeader.js';
+import { routes } from '../../routes.js';
+import { docCompanies, type DocCompany, type DocFile } from './data.js';
+
+/* --- firm Documents chrome: Tier 3 tabs and the All Companies column ------- */
+
+export type FirmDocsTab = 'documents' | 'requests';
+
+/**
+ * Firm Documents' tabs, in row 2 in place of a page title (the top nav already
+ * says Documents): All documents · Requests. Questions folded into Requests;
+ * a company opens in its own context, where its tabs sit in Tier 3.
+ */
+export const firmDocsTabs: PageTab[] = [
+  { key: 'documents', label: 'All documents', to: routes.documents },
+  { key: 'requests', label: 'Requests', to: routes.firmDocuments.requests },
+];
+
+/** A toolbar filter: the value in force on a FilterDropdown, its options in a SelectMenu. */
+export function FilterSelect<T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <FilterDropdown label={label} expanded={open} aria-haspopup="listbox" onClick={() => setOpen((o) => !o)}>
+        {options.find((o) => o.value === value)?.label}
+      </FilterDropdown>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: zIndex.overlay, marginTop: space.xs }}>
+          <SelectMenu label={label} onEscape={() => setOpen(false)}>
+            {options.map((o) => (
+              <SelectMenuOption key={o.value} selected={o.value === value} onSelect={() => { onChange(o.value); setOpen(false); }}>
+                {o.label}
+              </SelectMenuOption>
+            ))}
+          </SelectMenu>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One company in the left list: name, fund tag and what the tab counts for it. */
+export function CompanyRow({ id, name, fund, end, selected, onClick }: {
+  id?: string; name: string; fund?: string; end: ReactNode; selected: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-company-id={id}
+      aria-pressed={selected}
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: space.s, width: '100%',
+        padding: `${space.s} ${space.m}`, borderRadius: radius.xs, cursor: 'pointer', textAlign: 'left',
+        background: selected ? color.bg.brandSubtle : color.bg.surface,
+        border: `1px solid ${selected ? color.stroke.brand : color.stroke.control}`,
+      }}
+    >
+      <Text step="m" tone={selected ? 'brand' : 'primary'} truncate style={{ flex: 1 }}>{name}</Text>
+      {fund && <Chip styleVariant="default">{fund}</Chip>}
+      {end}
+    </button>
+  );
+}
+
+/** The All Companies column: find a company, pick it. `end` is the tab's count for each one. */
+export function CompanyColumn({ selectedId, onSelect, end }: {
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  end: (c: DocCompany) => ReactNode;
+}) {
+  const [query, setQuery] = useState('');
+  const shown = docCompanies(query);
+  return (
+    <section aria-label="All Companies" style={{ ...columnPanel, overflow: 'hidden', flex: '0 0 22%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Heading level={2} step="m">All Companies</Heading>
+        <FilterDropdown>All funds</FilterDropdown>
+      </div>
+      <Input
+        aria-label="Find company"
+        placeholder="Find Company"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+      <ScrollList noun={['company', 'companies']}>
+        {shown.map((c) => (
+          <CompanyRow key={c.id} name={c.name} fund={c.fund} end={end(c)} selected={c.id === selectedId} onClick={() => onSelect(c.id)} />
+        ))}
+        {!shown.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
+      </ScrollList>
+    </section>
+  );
+}
+
+/**
+ * The company list of a firm list + detail page (Requests, Reports): one list
+ * only, with search, the page's filters and a count line in its header. Rows
+ * are already filtered and sorted by the page; `end` is what each row counts
+ * (pending requests, report status). ↑/↓ move the selection; picking a company
+ * never leaves the page.
+ */
+export function CompanyListPanel({ label, rows, selectedId, onSelect, query, onQueryChange, filters, summary }: {
+  label: string;
+  rows: { company: DocCompany; end: ReactNode }[];
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  query: string;
+  onQueryChange: (q: string) => void;
+  /** Fund, Status, "With pending only" — under the search. */
+  filters?: ReactNode;
+  /** "200 of 200 companies · 39 with requests pending". */
+  summary: string;
+}) {
+  const list = useRef<HTMLDivElement>(null);
+  const move = (by: number) => {
+    const i = rows.findIndex((r) => r.company.id === selectedId);
+    const next = rows[Math.min(rows.length - 1, Math.max(0, i + by))];
+    if (!next) return;
+    onSelect(next.company.id);
+    list.current?.querySelector<HTMLElement>(`[data-company-id="${next.company.id}"]`)?.focus();
+  };
+  return (
+    <section
+      aria-label={label}
+      style={{ ...columnPanel, overflow: 'hidden', flex: `0 0 calc(${size.control.l} * 7.5)`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}
+    >
+      <Input
+        aria-label="Find company"
+        placeholder="Find company"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+      {filters && <div style={{ display: 'flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>{filters}</div>}
+      <Text step="s" tone="secondary" role="status">{summary}</Text>
+      {/* Arrow keys move the selection, like a listbox; each row stays a button so Tab still reaches it. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        ref={list}
+        style={{ display: 'flex', flex: 1, minHeight: 0 }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); move(e.key === 'ArrowDown' ? 1 : -1); }
+        }}
+      >
+        <ScrollList noun={['company', 'companies']}>
+          {rows.map(({ company: c, end }) => (
+            <CompanyRow key={c.id} id={c.id} name={c.name} fund={c.fund} end={end} selected={c.id === selectedId} onClick={() => onSelect(c.id)} />
+          ))}
+          {!rows.length && <EmptyState type="no-results" title="No companies match" body="Clear the search or the filters to see every company." />}
+        </ScrollList>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Each column of the firm Documents body sits in its own container: a subtle
+ * fill so the white rows and cards inside read as content, a hairline border
+ * and rounded corners. Spread it into the column's style.
+ */
+export const columnPanel: CSSProperties = {
+  background: color.bg.subtle,
+  border: `1px solid ${color.stroke.divider}`,
+  borderRadius: radius.m,
+  padding: space.m,
+  // Columns fill the body's height (the body's flex row stretches them) and scroll inside.
+  minHeight: 0,
+  overflow: 'auto',
+};
+
+/**
+ * A column's list that takes the rest of the column's height and scrolls on
+ * its own. While rows are out of view below, the blue Scroll Hint Pill
+ * ("↓ 12 companies") counts them; a click scrolls down a page.
+ */
+export function ScrollList({ noun, children }: { noun: [one: string, other: string]; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [below, setBelow] = useState(0);
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    const edge = el.getBoundingClientRect().bottom;
+    const rows = Array.from(el.children).filter((c) => !c.hasAttribute('data-scroll-hint'));
+    setBelow(rows.filter((r) => r.getBoundingClientRect().bottom > edge + 1).length);
+  };
+  // Rows change with search and selection, so measure after every render (cheap; setState bails out when equal).
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      onScroll={measure}
+      style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: space.xs }}
+    >
+      {Children.toArray(children)}
+      {below > 0 && (
+        <div data-scroll-hint="" style={{ position: 'sticky', bottom: 0, display: 'flex', justifyContent: 'center', padding: space.xs, pointerEvents: 'none' }}>
+          <ScrollHintPill
+            style={{ pointerEvents: 'auto' }}
+            onClick={() => ref.current?.scrollBy({ top: ref.current.clientHeight * 0.8, behavior: 'smooth' })}
+          >
+            {below} {below === 1 ? noun[0] : noun[1]}
+          </ScrollHintPill>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- small composed pieces (no DS equivalent) ------------------------------ */
+
+export function metaChips(file: DocFile, withLink = true) {
+  return [
+    { icon: <Icon size="xs" tone="inherit"><icons.Person /></Icon>, label: file.uploader },
+    { icon: <Icon size="xs" tone="inherit"><icons.CalendarToday /></Icon>, label: file.date },
+    ...(withLink && file.link ? [{ icon: <Icon size="xs" tone="inherit"><icons.Link /></Icon>, label: file.link }] : []),
+  ];
+}
+
+/** A measurement-date folder band: select, name, counts, folder actions, collapse. */
+export function DateBand({ date, meta, expanded, onToggle, compact, onAddFolder, onUpload, checked, indeterminate, onCheckedChange }: {
+  date: string; meta?: string; expanded: boolean; onToggle: () => void; compact?: boolean;
+  /** Selects every document in the date. Omit for a date with none to select. */
+  checked?: boolean; indeterminate?: boolean; onCheckedChange?: (checked: boolean) => void;
+  /** Omit both for a folder that takes no uploads (Exports). */
+  onAddFolder?: () => void; onUpload?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: space.s, padding: `${space.xs} ${space.m}`,
+        background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.xs,
+      }}
+    >
+      <CheckboxItem
+        size="s"
+        aria-label={`Select every document in ${date}`}
+        checked={!!checked}
+        indeterminate={!!indeterminate}
+        disabled={!onCheckedChange}
+        onChange={(e) => onCheckedChange?.(e.target.checked)}
+      />
+      <Icon size="s" tone="secondary"><icons.Folder /></Icon>
+      <Text step="m" weight="semiBold">{date}</Text>
+      {meta && <Text step="s" tone="tertiary" truncate style={{ flex: 1 }}>{meta}</Text>}
+      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space.xs }}>
+        {!onAddFolder && !onUpload ? null : compact ? (
+          <>
+            <ButtonIcon variant="tertiary" size="s" label={`Add subfolder to ${date}`} onClick={onAddFolder} icon={<Icon size="s" tone="inherit"><icons.CreateNewFolder /></Icon>} />
+            <ButtonIcon variant="tertiary" size="s" label={`Upload document to ${date}`} onClick={onUpload} icon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} />
+          </>
+        ) : (
+          <>
+            <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.CreateNewFolder /></Icon>} onClick={onAddFolder}>Add Subfolder</Button>
+            <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} onClick={onUpload}>Upload Document</Button>
+          </>
+        )}
+        <ButtonIcon
+          variant="tertiary" size="s" label={expanded ? `Collapse ${date}` : `Expand ${date}`} onClick={onToggle}
+          icon={<Icon size="s" tone="inherit">{expanded ? <icons.KeyboardArrowUp /> : <icons.KeyboardArrowDown />}</Icon>}
+        />
+      </span>
+    </div>
+  );
+}
+
+/* --- document tree rows ---------------------------------------------------- */
+
+/**
+ * One document on one line: type icon and name on the left, uploader, date and
+ * linked area right-aligned (Files › Row Inline). Company and firm Documents
+ * both draw their trees with it.
+ */
+export function DocRow(props: FileRowProps) {
+  return <FileRow layout="inline" typeIndicator="icon" draggable {...props} />;
+}
+
+/**
+ * A subfolder in a document tree: checkbox, folder glyph, name and count, the
+ * collapse arrow at the right end. Plain like a document row, with no band —
+ * only measurement dates get the filled band (`DateBand`). Its checkbox selects
+ * every document in the folder.
+ */
+export function FolderRow({ name, count, expanded, onToggle, checked, indeterminate, onCheckedChange, indent = 0 }: {
+  name: string;
+  count?: number;
+  expanded: boolean;
+  onToggle: () => void;
+  checked: boolean;
+  indeterminate?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  /** Nesting depth, in steps of `space.l`. */
+  indent?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: space.s,
+        padding: `${space.xs} ${space.m}`, paddingLeft: indent ? `calc(${space.m} + ${indent} * ${space.l})` : space.m,
+        background: color.bg.surface, borderBottom: `1px solid ${color.stroke.subtle}`,
+      }}
+    >
+      <CheckboxItem
+        size="s"
+        aria-label={`Select every document in ${name}`}
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={(e) => onCheckedChange(e.target.checked)}
+      />
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: space.s, padding: 0, border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
+      >
+        <Icon size="s" tone="secondary"><icons.Folder /></Icon>
+        <Text as="span" step="m" truncate>{name}</Text>
+        {count !== undefined && <Text as="span" step="s" tone="tertiary">{count}</Text>}
+      </button>
+      <ButtonIcon
+        variant="tertiary" size="s" label={expanded ? `Collapse ${name}` : `Expand ${name}`} onClick={onToggle}
+        icon={<Icon size="s" tone="inherit">{expanded ? <icons.KeyboardArrowUp /> : <icons.KeyboardArrowDown />}</Icon>}
+      />
+    </div>
+  );
+}
+
+/* --- viewer ---------------------------------------------------------------- */
+
+export function Viewer({ file, loading, onClose }: { file: DocFile; loading: boolean; onClose: () => void }) {
+  const [page, setPage] = useState(1);
+  const [zoom, setZoom] = useState(100);
+  return (
+    <section aria-label="Document preview" style={{ ...columnPanel, display: 'flex', flexDirection: 'column', gap: space.s, flex: 1, minWidth: 0 }}>
+      <DocumentViewerHeader
+        fileName={file.name}
+        meta={
+          <span style={{ display: 'inline-flex', gap: space.xs }}>
+            <Chip styleVariant="default">{file.uploader}</Chip>
+            <Chip styleVariant="default">{file.date}</Chip>
+          </span>
+        }
+        onDownload={() => {}}
+        onCopyLink={() => {}}
+        onRename={() => {}}
+        onDelete={() => {}}
+        onExpand={() => {}}
+        onClose={onClose}
+      />
+      <div
+        style={{
+          flex: 1, display: 'flex', flexDirection: 'column', gap: space.m, padding: space.m,
+          background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.s,
+        }}
+      >
+        {loading ? (
+          <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: space.s, padding: space['4xl'] }}>
+            <Spinner size="l" label="Preparing PDF preview" />
+            <Text step="m" tone="secondary">Preparing PDF preview…</Text>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <PageStepper page={page} total={12} onChange={setPage} />
+              <ZoomControl value={zoom} onChange={setZoom} onFit={() => setZoom(100)} />
+            </div>
+            <article
+              aria-label={`Page ${page} of 12`}
+              style={{
+                display: 'flex', flexDirection: 'column', gap: space.l, padding: space['2xl'],
+                background: color.bg.surface, border: `1px solid ${color.stroke.default}`,
+                borderRadius: radius.xs, boxShadow: elevation.raised,
+              }}
+            >
+              <Heading level={2} step="3xl">Django</Heading>
+              <Text step="l" tone="secondary">Documentation</Text>
+              <Heading level={3} step="2xl" weight="regular">Advanced testing topics</Heading>
+              <Heading level={4} step="l" weight="regular">The request factory</Heading>
+              <Text step="m">
+                Preview of page {page}. The rendered PDF appears here at {zoom}% — use the page stepper to move
+                through the document and the zoom control to fit it to the pane.
+              </Text>
+              <Text step="m" tone="secondary">
+                The document stays linked to its company and measurement date, so it also appears in the company’s
+                Documents tab and in the Workspace drawer on its Waterfall and Valuations pages.
+              </Text>
+            </article>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
