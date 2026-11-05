@@ -36,8 +36,21 @@ const isQuestion = (r: Pick<InformationRequest, 'responseType'>) => QUESTION_TYP
  * valuation in progress — the open documents and questions reopened, so the
  * list and the Valuations column agree from the start.
  */
+/** Days before Oct 27 a company's request went out, so dates differ across the firm (stable per company). */
+const sentDaysAgo = (companyId: string) => [...companyId].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 21;
+const shiftDay = (iso: string, days: number) => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return `${d.toISOString().slice(0, 10)}${iso.slice(10)}`;
+};
+const seedSentAt = (companyId: string) => shiftDay('2026-10-27', -sentDaysAgo(companyId));
+
 function seedRequests(companyId: string): InformationRequest[] {
-  const every = FIXTURES.standard['all-complete']!();
+  // Seeded uploads land a day or so after the company's own send date.
+  const lag = 1 - sentDaysAgo(companyId) + (sentDaysAgo(companyId) % 4);
+  const every = FIXTURES.standard['all-complete']!().map((r) => (r.files?.length
+    ? { ...r, files: r.files.map((f) => ({ ...f, uploadedAt: shiftDay(f.uploadedAt, lag - 1) })) }
+    : r));
   const open = seedTasksOf(companyById(companyId));
   if (!open) return every;
   const simple = (r: InformationRequest) => !r.parentId && !every.some((f) => f.parentId === r.id) && r.responseType !== 'multiple_choice';
@@ -71,7 +84,7 @@ const contactFor = (companyId: string) =>
 function seedMeta(companyId: string, state: string): Meta {
   const ids = requestsSeed(companyId, state)().map((r) => r.id);
   return {
-    batches: ids.length ? [{ id: 'seed', sentAt: '2026-10-27', recipients: [contactFor(companyId)], requestIds: ids }] : [],
+    batches: ids.length ? [{ id: 'seed', sentAt: seedSentAt(companyId), recipients: [contactFor(companyId)], requestIds: ids }] : [],
     introduction: ids.length ? INTRODUCTION : [],
   };
 }

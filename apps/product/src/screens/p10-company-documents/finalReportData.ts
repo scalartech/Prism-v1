@@ -26,6 +26,11 @@ export interface ReportVersion {
   createdBy: string;
   /** ISO date-time. */
   createdAt: string;
+  /** Uploads: the name the file came in with. The version itself takes the naming convention. */
+  originalName?: string;
+  /** Soft delete (analysts only, never the final version). Numbers are never reused. */
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface FinalPointer {
@@ -34,7 +39,7 @@ export interface FinalPointer {
   publishedAt: string;
 }
 
-export interface AuditEntry { at: string; by: string; versionId: string; replaced?: string }
+export interface AuditEntry { at: string; by: string; versionId: string; replaced?: string; action?: 'set-final' | 'delete' }
 
 export interface FinalReportState {
   /** False when the company has no valuation for this measurement date. */
@@ -58,7 +63,7 @@ export const reportStatusLabel: Record<ReportStatus, string> = {
 /** `empty` starts with no versions; every other state uses the company's seeded report. */
 const variantOf = (state: string) => (state === 'empty' || state === 'client-empty' ? 'empty' : 'default');
 const keyOf = (companyId: string, date: string, state: string) =>
-  `scalar.final-report.v1.${companyId}.${date.replace(/\//g, '-')}.${variantOf(state)}`;
+  `scalar.final-report.v2.${companyId}.${date.replace(/\//g, '-')}.${variantOf(state)}`;
 
 /** "03/31/2025" → "03-31-2025", for file names. */
 const dashed = (us: string) => us.replace(/\//g, '-');
@@ -70,7 +75,8 @@ function seed(companyId: string, date: string, state: string): FinalReportState 
   const name = companyById(companyId).name;
   const v = (n: number, source: ReportVersion['source'], rev: number | null, by: string, at: string): ReportVersion => ({
     id: `v${n}`, versionNumber: n, source, valuationRevisionId: rev, createdBy: by, createdAt: at,
-    fileName: source === 'upload' ? `${name} valuation report (final, signed) v${n}.pdf` : reportFileName(name, date, n),
+    fileName: reportFileName(name, date, n),
+    ...(source === 'upload' ? { originalName: `${name} valuation report (final, signed).pdf` } : {}),
   });
   const final = (id: string, at: string): FinalPointer => ({ reportVersionId: id, publishedBy: 'Steven Hansen', publishedAt: at });
   if (variantOf(state) === 'empty') return { hasValuation: true, revision: { id: 1, savedAt: '2026-10-01T10:00:00' }, versions: [], audit: [] };
@@ -105,7 +111,22 @@ export function isOutOfDate(s: FinalReportState, v: ReportVersion): boolean {
     : new Date(v.createdAt) < new Date(s.revision.savedAt);
 }
 
-export const finalVersion = (s: FinalReportState) => s.versions.find((v) => v.id === s.final?.reportVersionId);
+export const finalVersion = (s: FinalReportState) => s.versions.find((v) => v.id === s.final?.reportVersionId && !v.deletedAt);
+
+/** The versions an analyst sees: deleted ones are kept for the audit log, not listed. */
+export const liveVersions = (s: FinalReportState) => s.versions.filter((v) => !v.deletedAt);
+
+/**
+ * When a version was the one clients saw, from the Set-as-final log: the first
+ * time it was set, to when another replaced it (or now). Null if never final.
+ */
+export function finalSpan(s: FinalReportState, id: string): { from: string; to?: string } | null {
+  const set = s.audit.filter((a) => a.action !== 'delete');
+  const i = set.findIndex((a) => a.versionId === id);
+  if (i < 0) return null;
+  const replaced = set.slice(i + 1).find((a) => a.replaced === id);
+  return { from: set[i]!.at, to: replaced?.at };
+}
 
 export function reportStatus(s: FinalReportState): ReportStatus {
   if (!s.hasValuation) return 'no-valuation';
@@ -143,9 +164,12 @@ export function useFinalReport(companyId: string, date: string, state = 'default
       set((cur) => ({ ...cur, versions: [...cur.versions, v] }));
       return v;
     },
-    upload(fileName: string): ReportVersion {
+    upload(originalName: string): ReportVersion {
       const n = nextNumber();
-      const v: ReportVersion = { id: `v${n}`, versionNumber: n, source: 'upload', fileName, valuationRevisionId: null, createdBy: user.name, createdAt: now() };
+      const v: ReportVersion = {
+        id: `v${n}`, versionNumber: n, source: 'upload', fileName: reportFileName(name, date, n), originalName,
+        valuationRevisionId: null, createdBy: user.name, createdAt: now(),
+      };
       set((cur) => ({ ...cur, versions: [...cur.versions, v] }));
       return v;
     },
@@ -154,8 +178,21 @@ export function useFinalReport(companyId: string, date: string, state = 'default
       set((cur) => ({
         ...cur,
         final: { reportVersionId: versionId, publishedBy: user.name, publishedAt: now() },
-        audit: [...cur.audit, { at: now(), by: user.name, versionId, replaced: cur.final?.reportVersionId }],
+        audit: [...cur.audit, { at: now(), by: user.name, versionId, replaced: cur.final?.reportVersionId, action: 'set-final' }],
       }));
+    },
+    /**
+     * Soft-deletes a version and logs it. The final version is refused here,
+     * not only hidden in the UI: set another version as final first.
+     */
+    deleteVersion(versionId: string): boolean {
+      if (s.final?.reportVersionId === versionId) return false;
+      set((cur) => cur.final?.reportVersionId === versionId ? cur : ({
+        ...cur,
+        versions: cur.versions.map((v) => (v.id === versionId ? { ...v, deletedAt: now(), deletedBy: user.name } : v)),
+        audit: [...cur.audit, { at: now(), by: user.name, versionId, action: 'delete' }],
+      }));
+      return true;
     },
     /** Prototype: a saved change to the valuation, as if the analyst edited an input. */
     saveValuationChange() {

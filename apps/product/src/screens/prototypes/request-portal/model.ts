@@ -144,7 +144,8 @@ export const statusLabel: Record<RequestStatus, string> = {
   pending: 'Pending',
   complete: 'Complete',
   na: 'Not applicable',
-  sent: 'Sent another way',
+  // Completed outside the portal: the chip says Complete (blue); the row's answer slot says how.
+  sent: 'Complete',
 };
 
 export const responseTypeLabel: Record<ResponseType, string> = {

@@ -6,122 +6,47 @@
  *
  * Analyst: two panes — Report versions (newest first: name, source, created,
  * status, Set as final) and the PDF viewer for the version picked (the final
- * one by default), so a version is previewed before it is published. Tier 3:
- * Create PDF export · Upload report. When the final version goes out of date a
- * warning banner says so, and the tab carries a warning mark; the published
- * final is never replaced by itself.
+ * one by default), so a version is previewed before it is published. Tier 3 is the
+ * one place for status and actions (Round 2 §4): after the tabs, the
+ * out-of-date chip; on the right, View (zoom) | File (Download · Print) |
+ * Manage (Upload report · Create PDF export). The published final is never
+ * replaced by itself. Non-final versions can be deleted (soft, logged); the
+ * final one can't.
  *
- * Client (`?state=client`): the viewer of the final version only — no
- * versions, statuses or warnings. Provenance sits in the viewer header
- * ("Prepared by Scalar" with the Scalar mark, or "Uploaded by …"), never in the
- * tab label.
+ * Client (View as: Client user, or `?state=client`): the viewer of the final
+ * version only, with View and File — no versions, statuses, warnings, create,
+ * upload or delete. Provenance sits in the viewer header ("Prepared by Scalar"
+ * with the Scalar icon, or "Uploaded by …"), never in the tab label.
  *
  * Prototype (proto:company-final-report): no Figma frames yet. Data lives in
  * this browser; "Save a valuation change" stands in for the analyst editing
  * the valuation. Open questions: which saves count (2), drafts (3), what
  * "Scalar-made" means (6), client email on publish (7).
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  Alert, Banner, Button, ButtonIcon, Chip, ConfirmationDialog, Dropzone, EmptyState, FileRow, Heading, Icon, Modal,
-  PageStepper, TertiaryMenuItem, Text, Toast, ToastViewport, ZoomControl, color, elevation, icons, radius, size, space,
+  Button, ButtonIcon, Chip, ConfirmationDialog, Dropzone, EmptyState, FileRow, Heading, Icon, Modal,
+  TertiaryMenuItem, Text, Toast, ToastViewport, Tooltip, color, icons, radius, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../types.js';
 import { href } from '../../router.js';
 import { routes } from '../../routes.js';
-import { companyById, type Company } from '../../data/fixtures.js';
+import { companyById } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
+import { PrototypePanel } from '../../shell/PrototypePanel.js';
+import { useViewAs } from '../../shell/viewAs.js';
 import { columnPanel } from '../p05-documents/parts.js';
 import { formatDay } from '../prototypes/request-portal/model.js';
-import { CompanyDocsHeaderEnd, DocumentsSubNav } from './shared.js';
+import { CompanyDocsHeaderEnd, DocumentsSubNav, useNarrow } from './shared.js';
 import { formatStamp } from './exportsData.js';
-import { isOutOfDate, provenanceOf, useFinalReport, type FinalReportStore, type ReportVersion } from './finalReportData.js';
+import { finalSpan, isOutOfDate, liveVersions, useFinalReport, type FinalReportStore, type ReportVersion } from './finalReportData.js';
+import { ReportTools, ReportViewer, downloadNote } from './ReportViewer.js';
 import { usePageTitle } from './Requests.js';
-
-/* --- viewer ---------------------------------------------------------------- */
-
-function Provenance({ version }: { version: ReportVersion }) {
-  return version.source === 'scalar_export' ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
-      <img src="./assets/scalar-wordmark-navy.png" alt="Scalar" style={{ height: size.icon.s }} />
-      <Text as="span" step="s" tone="secondary">Prepared by Scalar</Text>
-    </span>
-  ) : (
-    <Chip size="s" leadingIcon={<Icon size="xs" tone="inherit"><icons.Person /></Icon>}>{provenanceOf(version)}</Chip>
-  );
-}
-
-/** The report header (name · provenance · date · Download · Print) above the embedded PDF. */
-function ReportViewer({ company, date, version, failed, notify }: {
-  company: Company; date: string; version: ReportVersion; failed?: boolean; notify: (t: string) => void;
-}) {
-  const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(100);
-  useEffect(() => setPage(1), [version.id]);
-  return (
-    <section aria-label={`Report preview: ${version.fileName}`} style={{ ...columnPanel, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: space.m, flexWrap: 'wrap' }}>
-        <Icon size="m" tone="negative"><icons.PictureAsPdf /></Icon>
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space['2xs'] }}>
-          <Heading level={2} step="m" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{version.fileName}</Heading>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>
-            <Provenance version={version} />
-            <Text as="span" step="s" tone="secondary">{formatStamp(version.createdAt)}</Text>
-          </span>
-        </div>
-        <Button variant="secondary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.Download /></Icon>} onClick={() => notify(`${version.fileName} downloaded. The prototype produces no file.`)}>
-          Download
-        </Button>
-        <ButtonIcon variant="tertiary" size="s" label="Print report" onClick={() => window.print()} icon={<Icon size="s" tone="inherit"><icons.Print /></Icon>} />
-      </div>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: space.m, padding: space.m, background: color.bg.subtle, border: `1px solid ${color.stroke.subtle}`, borderRadius: radius.s, overflow: 'auto' }}>
-        {failed ? (
-          // Never a blank frame: if the PDF can't render, the file is still one click away.
-          <Alert tone="warning" title="This report can’t be shown here">
-            <span style={{ display: 'flex', flexDirection: 'column', gap: space.s, alignItems: 'flex-start' }}>
-              The PDF could not be rendered in the browser. Download it to read it.
-              <Button variant="secondary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.Download /></Icon>} onClick={() => notify(`${version.fileName} downloaded. The prototype produces no file.`)}>
-                {`Download ${version.fileName}`}
-              </Button>
-            </span>
-          </Alert>
-        ) : (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <PageStepper page={page} total={18} onChange={setPage} />
-              <ZoomControl value={zoom} onChange={setZoom} onFit={() => setZoom(100)} />
-            </div>
-            <article
-              aria-label={`Page ${page} of 18`}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: space.l, padding: space['2xl'],
-                background: color.bg.surface, border: `1px solid ${color.stroke.default}`, borderRadius: radius.xs, boxShadow: elevation.raised,
-              }}
-            >
-              <Text step="s" tone="secondary">{version.source === 'scalar_export' ? 'Prepared by Scalar' : `Uploaded by ${version.createdBy}`}</Text>
-              <Heading level={3} step="3xl">{company.name}</Heading>
-              <Text step="l" tone="secondary">{`Valuation report · Measurement date ${date}`}</Text>
-              <Heading level={4} step="l" weight="regular">{page === 1 ? 'Summary of conclusions' : `Section ${page}`}</Heading>
-              <Text step="m">
-                Page {page} of the report at {zoom}%. The PDF renders here; use the page stepper to move through it and the zoom
-                control to fit it to the pane.
-              </Text>
-              <Text step="m" tone="secondary">
-                Figures in this report are the ones in the valuation when the PDF was made. Later changes to the valuation do not
-                change this file.
-              </Text>
-            </article>
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
 
 /* --- analyst: versions list ------------------------------------------------ */
 
-function VersionItem({ s, version, selected, onSelect, onSetFinal }: {
-  s: FinalReportStore; version: ReportVersion; selected: boolean; onSelect: () => void; onSetFinal: () => void;
+function VersionItem({ s, version, selected, onSelect, onSetFinal, onDelete }: {
+  s: FinalReportStore; version: ReportVersion; selected: boolean; onSelect: () => void; onSetFinal: () => void; onDelete: () => void;
 }) {
   const isFinal = s.final?.id === version.id;
   const stale = isOutOfDate(s.state, version);
@@ -137,6 +62,7 @@ function VersionItem({ s, version, selected, onSelect, onSetFinal }: {
       >
         <Text as="span" step="m" weight="semiBold" tone={selected ? 'brand' : 'primary'} truncate>{version.fileName}</Text>
         <Text as="span" step="s" tone="secondary">{`v${version.versionNumber} · ${version.source === 'scalar_export' ? 'Scalar export' : `Uploaded by ${version.createdBy}`} · ${formatStamp(version.createdAt)}`}</Text>
+        {version.originalName && <Text as="span" step="s" tone="tertiary" truncate>{version.originalName}</Text>}
       </button>
       <span style={{ display: 'flex', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' }}>
         {isFinal && <Chip size="s" styleVariant="positive" leadingIcon={<Icon size="xs" tone="inherit"><icons.CheckCircle /></Icon>}>Final</Chip>}
@@ -150,11 +76,35 @@ function VersionItem({ s, version, selected, onSelect, onSetFinal }: {
             {version.source === 'upload' ? 'Valuation changed after this upload' : `Valuation changed ${changed}`}
           </Text>
         )}
-        {!isFinal && (
-          <Button variant="tertiary" size="xs" style={{ marginLeft: 'auto' }} onClick={onSetFinal}>Set as final</Button>
-        )}
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: space['2xs'] }}>
+          {!isFinal && <Button variant="tertiary" size="xs" onClick={onSetFinal}>Set as final</Button>}
+          {isFinal ? (
+            // The final version can't be deleted; the disabled button says why.
+            <Tooltip content="Set another version as final to delete this one.">
+              <ButtonIcon variant="tertiary" size="xs" disabled label={`Delete v${version.versionNumber} (final)`} icon={<Icon size="s" tone="inherit"><icons.Delete /></Icon>} />
+            </Tooltip>
+          ) : (
+            <ButtonIcon variant="tertiary" size="xs" label={`Delete v${version.versionNumber}`} onClick={onDelete} icon={<Icon size="s" tone="inherit"><icons.Delete /></Icon>} />
+          )}
+        </span>
       </span>
     </li>
+  );
+}
+
+/** After the tabs: the final report is out of date. The muted date drops first when narrow, then the chip shortens. */
+function OutOfDate({ companyName, finalNumber, changedOn }: { companyName: string; finalNumber?: number; changedOn: string }) {
+  const narrow = useNarrow(1440);
+  const narrower = useNarrow(1280);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.s, marginLeft: space.s, whiteSpace: 'nowrap' }}>
+      <Tooltip content={`${companyName} still sees v${finalNumber ?? ''} until you set a new final.`}>
+        <Chip size="s" styleVariant="warning" leadingIcon={<Icon size="xs" tone="inherit"><icons.Warning /></Icon>}>
+          {narrower ? 'Out of date' : 'Final report out of date'}
+        </Chip>
+      </Tooltip>
+      {!narrow && <Text as="span" step="s" tone="secondary">{`Valuation changed ${changedOn}`}</Text>}
+    </span>
   );
 }
 
@@ -163,16 +113,21 @@ function VersionItem({ s, version, selected, onSelect, onSetFinal }: {
 export function FinalReport({ state, params }: ScreenProps) {
   const company = companyById(params.companyId);
   const date = company.asOf;
-  const client = state === 'client' || state === 'client-empty';
+  const [viewer] = useViewAs();
+  const client = state === 'client' || state === 'client-empty' || viewer === 'client';
   usePageTitle(`${company.name} — Final Report`);
   const s = useFinalReport(company.id, date, state);
-  const versions = [...s.state.versions].sort((a, b) => b.versionNumber - a.versionNumber);
+  const versions = liveVersions(s.state).sort((a, b) => b.versionNumber - a.versionNumber);
   const [selectedId, setSelectedId] = useState<string | undefined>(s.final?.id ?? versions[0]?.id);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(state === 'create');
   const [confirmFinal, setConfirmFinal] = useState<ReportVersion | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ReportVersion | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(100);
   const selected = versions.find((v) => v.id === selectedId) ?? s.final ?? versions[0];
+  /** What the viewer shows: the client only ever sees the final version. */
+  const shown = client ? (state === 'client-empty' ? undefined : s.final) : selected;
 
   const createExport = () => {
     const v = s.createExport();
@@ -187,6 +142,13 @@ export function FinalReport({ state, params }: ScreenProps) {
     setToast(`v${v.versionNumber} is now the final report. ${company.name} sees it on its Final Report tab.`);
   };
   const askFinal = (v: ReportVersion) => { if (s.final && s.final.id !== v.id) setConfirmFinal(v); else setFinal(v); };
+  const deleteVersion = (v: ReportVersion) => {
+    setConfirmDelete(null);
+    if (!s.deleteVersion(v.id)) return;
+    if (selectedId === v.id) setSelectedId(undefined);
+    setToast(`v${v.versionNumber} deleted. The deletion is recorded in the audit log.`);
+  };
+  const span = confirmDelete ? finalSpan(s.state, confirmDelete.id) : null;
 
   const overlay = (
     <>
@@ -201,6 +163,18 @@ export function FinalReport({ state, params }: ScreenProps) {
         onConfirm={() => confirmFinal && setFinal(confirmFinal)}
       >
         {`Clients will see v${confirmFinal?.versionNumber ?? ''} instead of v${s.final?.versionNumber ?? ''}. The change is recorded in the audit log.`}
+      </ConfirmationDialog>
+      <ConfirmationDialog
+        open={confirmDelete !== null}
+        title={`Delete v${confirmDelete?.versionNumber ?? ''}?`}
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && deleteVersion(confirmDelete)}
+      >
+        {`This can’t be undone. ${span
+          ? `Clients saw this version from ${formatDay(span.from)} to ${formatDay(span.to ?? new Date().toISOString())}.`
+          : 'Clients never saw this version.'}`}
       </ConfirmationDialog>
       <ConfirmationDialog
         open={creating}
@@ -221,8 +195,25 @@ export function FinalReport({ state, params }: ScreenProps) {
           setToast(`${name} added as v${v.versionNumber}. Set it as final to publish it to ${company.name}.`);
         }}
       />
+      <PrototypePanel>
+        <Button size="s" variant="tertiary" onClick={() => { s.saveValuationChange(); setToast('Valuation change saved. What the client sees did not change.'); }}>Save a valuation change</Button>
+        <Button size="s" variant="tertiary" onClick={() => { s.reset(); setSelectedId(undefined); }}>Reset prototype data</Button>
+      </PrototypePanel>
     </>
   );
+
+  const download = () => shown && setToast(downloadNote(shown));
+  const manage = !client && (
+    <>
+      <Button size="xs" variant="secondary" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} onClick={() => setUploading(true)}>
+        Upload report
+      </Button>
+      <Button size="xs" variant="primary" leadingIcon={<Icon size="s" tone="inherit"><icons.PictureAsPdf /></Icon>} onClick={createExport} disabled={!s.state.hasValuation}>
+        Create PDF export
+      </Button>
+    </>
+  );
+  const tools = <ReportTools zoom={zoom} onZoom={setZoom} onDownload={download} disabled={!shown} manage={manage || undefined} />;
 
   /* ---- client: the final version only ---- */
   if (client) {
@@ -232,14 +223,14 @@ export function FinalReport({ state, params }: ScreenProps) {
         section="documents"
         date={date}
         subNav={<TertiaryMenuItem current href={href(routes.company.finalReport(company.id))}>Final Report</TertiaryMenuItem>}
-        subNavEnd={<Chip size="s" leadingIcon={<Icon size="xs" tone="inherit"><icons.Visibility /></Icon>}>Prototype: client view</Chip>}
+        subNavEnd={tools}
         dock={false}
         overlay={overlay}
       >
         <h2 className="scalar-visually-hidden">{`${company.name} — Final Report`}</h2>
-        {s.final && state !== 'client-empty' ? (
+        {shown ? (
           <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-            <ReportViewer company={company} date={date} version={s.final} notify={setToast} />
+            <ReportViewer company={company} date={date} version={shown} zoom={zoom} failed={state === 'render-failed'} onDownload={download} />
           </div>
         ) : (
           <EmptyState
@@ -254,39 +245,25 @@ export function FinalReport({ state, params }: ScreenProps) {
   }
 
   /* ---- analyst ---- */
-  const tools = (
-    <>
-      <Button size="xs" variant="secondary" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>} onClick={() => setUploading(true)}>
-        Upload report
-      </Button>
-      <Button size="xs" variant="primary" leadingIcon={<Icon size="s" tone="inherit"><icons.PictureAsPdf /></Icon>} onClick={createExport} disabled={!s.state.hasValuation}>
-        Create PDF export
-      </Button>
-    </>
-  );
-
   return (
     <CompanyLayout
       company={company}
       section="documents"
       date={date}
       headerEnd={<CompanyDocsHeaderEnd companyId={company.id} />}
-      subNav={<DocumentsSubNav companyId={company.id} current="final-report" />}
+      subNav={
+        <>
+          <DocumentsSubNav companyId={company.id} current="final-report" />
+          {s.status === 'out-of-date' && (
+            <OutOfDate companyName={company.name} finalNumber={s.final?.versionNumber} changedOn={formatDay(s.state.revision.savedAt)} />
+          )}
+        </>
+      }
       subNavEnd={tools}
       dock={false}
       overlay={overlay}
     >
       <h2 className="scalar-visually-hidden">{`${company.name} — Final Report`}</h2>
-      {s.status === 'out-of-date' && (
-        <Banner
-          tone="warning"
-          title="The final report is out of date"
-          action={<Button variant="secondary" size="s" onClick={createExport}>Create new PDF export</Button>}
-        >
-          {`The valuation changed on ${formatDay(s.state.revision.savedAt)}. ${company.name} still sees v${s.final?.versionNumber} until you set a new final.`}
-        </Banner>
-      )}
-
       {!s.state.hasValuation ? (
         <EmptyState
           type="no-data"
@@ -320,18 +297,12 @@ export function FinalReport({ state, params }: ScreenProps) {
             </Text>
             <ul aria-labelledby="report-versions" style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: space.xs }}>
               {versions.map((v) => (
-                <VersionItem key={v.id} s={s} version={v} selected={v.id === selected?.id} onSelect={() => setSelectedId(v.id)} onSetFinal={() => askFinal(v)} />
+                <VersionItem key={v.id} s={s} version={v} selected={v.id === selected?.id}
+                  onSelect={() => setSelectedId(v.id)} onSetFinal={() => askFinal(v)} onDelete={() => setConfirmDelete(v)} />
               ))}
             </ul>
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: space.s, paddingTop: space.m, borderTop: `1px solid ${color.stroke.divider}` }}>
-              <Text step="s" tone="secondary">Prototype: versions live in this browser. Save a valuation change to see a report go out of date.</Text>
-              <div style={{ display: 'flex', gap: space.s, flexWrap: 'wrap' }}>
-                <Button size="s" variant="tertiary" onClick={() => { s.saveValuationChange(); setToast('Valuation change saved. What the client sees did not change.'); }}>Save a valuation change</Button>
-                <Button size="s" variant="tertiary" onClick={() => { s.reset(); setSelectedId(undefined); }}>Reset prototype data</Button>
-              </div>
-            </div>
           </section>
-          {selected && <ReportViewer key={selected.id} company={company} date={date} version={selected} failed={state === 'render-failed'} notify={setToast} />}
+          {selected && <ReportViewer key={selected.id} company={company} date={date} version={selected} zoom={zoom} failed={state === 'render-failed'} onDownload={download} />}
         </div>
       )}
     </CompanyLayout>

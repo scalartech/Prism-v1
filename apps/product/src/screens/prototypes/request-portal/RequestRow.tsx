@@ -35,11 +35,13 @@ const typeIcon: Record<InformationRequest['responseType'], JSX.Element> = {
 
 export function StatusChip({ status, label }: { status: RequestStatus; label?: string }) {
   const s = statusChip[status];
-  return (
+  const chip = (
     <Chip size="s" styleVariant={s.style} leadingIcon={<Icon size="xs" tone="inherit">{s.icon}</Icon>}>
       {label ?? statusLabel[status]}
     </Chip>
   );
+  // "Complete" in blue is completed outside the portal; the tooltip says so, and the row's answer slot repeats it in words.
+  return status === 'sent' && !label ? <Tooltip content="Completed outside the portal">{chip}</Tooltip> : chip;
 }
 
 const fmtDate = (iso: string) => {
@@ -77,7 +79,7 @@ interface RowProps {
  * the file name, or how it was resolved without one. Null while nothing has.
  */
 export function answerSummary(req: InformationRequest): { node: ReactNode; text: string } | null {
-  if (req.status === 'na') return { node: 'Marked N/A', text: 'Marked N/A' };
+  if (req.status === 'na') return { node: 'N/A', text: 'N/A' };
   if (req.status === 'sent') return { node: 'Sent another way', text: 'Sent another way' };
   switch (req.responseType) {
     case 'choice': {
@@ -223,7 +225,9 @@ export function RequestRow({ req, all, expanded, onToggle, selected = false, onS
             <Alert tone="info" title={req.status === 'na' ? 'Marked as not applicable' : 'Marked complete — sent another way'}>
               {req.status === 'na'
                 ? 'No response is expected for this request. Reopen it if that changes.'
-                : 'You told the analyst this was delivered outside the portal. No file was uploaded here.'}
+                : viewer === 'sender'
+                  ? `Marked complete by ${respondent ?? 'the recipient'} · sent outside the portal.`
+                  : 'You told the analyst this was delivered outside the portal. No file was uploaded here.'}
             </Alert>
           )}
 
@@ -257,9 +261,12 @@ export function RequestRow({ req, all, expanded, onToggle, selected = false, onS
                 </Tooltip>
               </>
             )}
-            <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.PersonAdd /></Icon>} onClick={() => onDelegate(req.id)}>
-              {req.delegatee ? 'Change delegate' : 'Delegate'}
-            </Button>
+            {/* Nothing is left to delegate once a request is resolved, until it is reopened. */}
+            {!resolved && (
+              <Button variant="tertiary" size="s" leadingIcon={<Icon size="s" tone="inherit"><icons.PersonAdd /></Icon>} onClick={() => onDelegate(req.id)}>
+                {req.delegatee ? 'Change delegate' : 'Delegate'}
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -326,6 +333,7 @@ function Response(props: ResponseProps) {
 }
 
 function AnswerResponse({ req, op, store, kind, savedLabel = 'Your saved answer' }: ResponseProps & { kind: 'text' | 'choice' | 'date' }) {
+  const labelId = useId();
   // Restores the saved value when reopened (P1.4); what was typed survives a failed save.
   const [draft, setDraft] = useState(req.answer ?? '');
   useEffect(() => { setDraft(req.answer ?? ''); }, [req.answer]);
@@ -349,12 +357,16 @@ function AnswerResponse({ req, op, store, kind, savedLabel = 'Your saved answer'
         <Textarea rows={3} value={draft} onChange={(e) => setDraft(e.currentTarget.value)} disabled={saving} />
       </FormField>
     ) : kind === 'choice' ? (
-      <RadioGroup label="Your answer" value={draft || undefined} onValueChange={setDraft} disabled={saving}>
-        <div style={{ display: 'flex', gap: space.l }}>
-          <Radio value="yes">Yes</Radio>
-          <Radio value="no">No</Radio>
-        </div>
-      </RadioGroup>
+      // The S radio and a 14px label, matching the row checkboxes.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>
+        <Label as="span" step="m" id={labelId}>Your answer</Label>
+        <RadioGroup aria-labelledby={labelId} size="s" value={draft || undefined} onValueChange={setDraft} disabled={saving}>
+          <div style={{ display: 'flex', gap: space.l }}>
+            <Radio value="yes"><Text as="span" step="m">Yes</Text></Radio>
+            <Radio value="no"><Text as="span" step="m">No</Text></Radio>
+          </div>
+        </RadioGroup>
+      </div>
     ) : (
       <FormField label="Date" helperText="MM/DD/YYYY">
         <Input type="date" value={draft} onChange={(e) => setDraft(e.currentTarget.value)} disabled={saving} />
@@ -493,6 +505,8 @@ function TemplateResponse(props: ResponseProps) {
     setError(err);
     if (!err) notify('positive', `${t.fileName} downloaded. Fill it in, then upload it here.`);
   };
+  // Once resolved (any way) the steps are done: show only what was uploaded. Reopen brings them back.
+  if (req.status !== 'pending') return <FileResponse {...props} />;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: space.m }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>

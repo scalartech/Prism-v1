@@ -29,8 +29,8 @@ export const INTRODUCTION = [
  * week out the first time a fixture loads and then keeps the stored value, so
  * a responder sees "7 days remaining" on first open.
  */
-export function seedDueDate(today = new Date()): string {
-  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+export function seedDueDate(today = new Date(), days = 7): string {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 

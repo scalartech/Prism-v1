@@ -15,7 +15,7 @@
  */
 import { createContext, useContext, useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import {
-  Avatar, CompanyDropdown, Icon, MainMenuItem,
+  Avatar, Chip, CompanyDropdown, Icon, MainMenuItem,
   Notification, PrimaryMenu, ScalarProvider, SearchBar, Selector, icons,
   ToolSwitch, color, space, type ToolSwitchValue,
 } from '@scalar/design-system';
@@ -26,6 +26,7 @@ import { overlays, type GlobalMenu, type OverlayProps } from './overlays/index.j
 import { useValuationContext } from '../domain/context.js';
 import { usFromIso } from '../domain/model.js';
 import { usePinnedTableHead } from './usePinnedTableHead.js';
+import { useViewAs } from './viewAs.js';
 
 /**
  * Prototype hook: lets a prototype swap a global menu's surface, drive the
@@ -63,6 +64,7 @@ export interface AppFrameProps {
 
 export function AppFrame({ area, company, date, openMenu, overlay, children }: AppFrameProps) {
   const overrides = useContext(GlobalMenuOverridesContext);
+  const [viewer] = useViewAs();
   const initialMenu = openMenu ?? overrides.openMenu;
   const [open, setOpen] = useState<GlobalMenu | undefined>(initialMenu);
   const [tool, setTool] = useState<ToolSwitchValue>('valuations');
@@ -88,6 +90,8 @@ export function AppFrame({ area, company, date, openMenu, overlay, children }: A
           }
           end={
             <>
+              {/* Prototype View as: screenshots taken as a client must not pass for the analyst view. */}
+              {viewer === 'client' && <Chip size="s" styleVariant="warning" leadingIcon={<Icon size="xs" tone="inherit"><icons.Visibility /></Icon>}>Viewing as client</Chip>}
               <SearchBar
                 readOnly
                 onFocus={() => { if (Date.now() - closedAt.current > 300) setOpen('search'); }}

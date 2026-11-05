@@ -5,7 +5,7 @@ The firm-wide document library. Analysts and admins use it to find any file the 
 ## Screens
 
 ### Documents — `/documents`
-Browse all measurement-date folders, or pick a company to see its tree and preview a document beside it. Reached from **Documents** in the Primary Menu. Row 2 holds the tabs **All documents · Requests** in place of a page title (the top nav already says Documents; "Documents › Documents" would read as a bug), with the pin and ⋮ right-aligned, so no global Documents view has a third nav row. The document tools (Select all, Search, Filter, Full screen) sit at the top of the document column. The company tab (closable ViewTab) returns to All Documents; "Upload Document" leads to the company's Documents page upload modal (10).
+Browse all measurement-date folders, or pick a company to see its tree and preview a document beside it. Reached from **Documents** in the Primary Menu. Row 2 holds the tabs **All documents · Requests** in place of a page title (the top nav already says Documents; "Documents › Documents" would read as a bug), with the pin and ⋮ right-aligned, so no global Documents view has a third nav row. The same row carries the active tab's tools on its right — on All documents: Select all, Search, Filter, Full screen — then pin and ⋮ (Round 2 §2). Request Document, Upload Document and Request Information are gone from it: upload lives on each date folder, and requests are created inside a company. The All Documents panel has no visible title; the active tab names the view. The company tab (closable ViewTab) returns to All Documents; "Upload Document" leads to the company's Documents page upload modal (10).
 
 | State | Figma frame | Node | Open with |
 |---|---|---|---|
@@ -26,15 +26,19 @@ Behaviour & rules:
 - Viewer body text is placeholder copy, not the real PDF.
 
 ### Requests — `/documents/requests` (prototype state)
-Every company's information request in **one full-width table** (DataGrid, `ColumnHeader`): Company · Fund · Pending · Resolved / total · Due date · Last activity. Default sort: pending first, then the earliest due date; Company, Pending, Due date and Last activity sort from their headers. Above it: Find company, Fund and Status (All · Pending · All resolved · None sent) filters and the "N of 200 companies · N with requests pending" count.
+**List + detail** (Round 2 §1, replacing the Nov 4 full-width table): a firm admin picks a company on the left and answers or uploads its requests on the right, without leaving the page.
 
-- Picking a company opens it **in company context** — `#/companies/:id/documents/requests` — so the header company selector updates and its tabs (Documents · Requests · Exports · Final Report) appear in Tier 3. There is no third "Pick a company" column.
-- Back returns to the table with its search, filters, sort and scroll position as they were (kept in sessionStorage for the session).
-- **Questions folded into Requests** at both levels: requests already carry questions (Yes / No, written answer, multiple choice, date). `#/documents/questions`, `#/documents/questions/:id`, `#/documents/requests/:id` and `#/companies/:id/documents/questions` redirect (`routes.ts › redirectOf`) instead of 404ing.
+- **Left — one company list** (`CompanyListPanel`, about 360 px): Find company, Fund, a *With pending only* switch (on by default) and the "N of 200 companies · N with requests pending" count. Each row: name, fund chip, pending count (a check when all resolved). Sort: pending first, then the nearest due date, then name. ↑/↓ move the selection.
+- **Right — the company's requests**: the company Requests tab's own workspace (`useRequestsWorkspace(…, { firm: true })`), so inline answers, file names, Yes / No, upload, template, N/A and Delegate behave exactly as there. Above it: the company name and *Open company* (→ `#/companies/:id/documents/requests`, the only way into company context), then the meter, Expand, Status, Select All, Bulk actions and Due date. No Fund filter here — Fund belongs to the list. The introduction starts folded to one line ("Introduction from Scalar ▸"). When the last pending request is resolved: "All requests resolved · Next company with pending requests →".
+- `#/documents/requests` selects the first company with pending requests; `#/documents/requests/:companyId` deep-links one (selecting updates the address without navigating). Search, filters and selection survive Back (sessionStorage).
+- Row 2 on this tab holds nothing beyond the tabs, pin and ⋮: the request tools act on one company, so they live in the right pane.
+- **Questions folded into Requests** at both levels: requests already carry questions (Yes / No, written answer, multiple choice, date). `#/documents/questions` → firm Requests, `#/documents/questions/:id` → firm Requests with that company, `#/companies/:id/documents/questions` → company Requests (`routes.ts › redirectOf`).
+- View as: Client user (prototype panel) switches the copy to the respondent's ("Your saved answer") and hides the due-date edit.
 
 | State | Label | Node |
 |---|---|---|
-| default (`/documents/requests`) | Requests — one company table, pending first | proto:firm-requests:1 |
+| default (`/documents/requests`) | Requests — company list + request pane | proto:firm-requests:1 |
+| default (`/documents/requests/:companyId`) | Requests — one company open | proto:firm-requests:2 |
 
 Every count here, on the company pages and in Firm Valuations › Process Management reads the same per-company request list.
 

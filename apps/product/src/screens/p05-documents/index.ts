@@ -27,10 +27,21 @@ export const screens: ScreenDef[] = [{
   title: 'Documents › Requests',
   figmaPage: '05 · Documents (Firm)',
   route: routes.firmDocuments.requests,
-  summary: 'Every company’s information request in one table — pending, resolved / total, due date, last activity — pending first; a company opens in its own context.',
+  summary: 'List + detail: pick a company on the left (pending first) and answer or upload its requests on the right without leaving the page.',
   component: FirmRequests,
   states: [
-    { key: 'default', label: 'Requests — one company table, pending first', figmaNode: 'proto:firm-requests:1', section: 'Requests' },
+    { key: 'default', label: 'Requests — company list + request pane', figmaNode: 'proto:firm-requests:1', section: 'Requests' },
+  ],
+},
+{
+  id: 'documents.requests.company',
+  title: 'Documents › Requests (company open)',
+  figmaPage: '05 · Documents (Firm)',
+  route: routes.firmDocuments.request(':companyId'),
+  summary: 'Firm Requests deep-linked to one company: the same list + detail page with that company selected.',
+  component: FirmRequests,
+  states: [
+    { key: 'default', label: 'Requests — one company open', figmaNode: 'proto:firm-requests:2', section: 'Requests' },
   ],
 }
 ];

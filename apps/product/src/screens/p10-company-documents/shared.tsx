@@ -12,6 +12,7 @@ import { routes } from '../../routes.js';
 import { companyById } from '../../data/fixtures.js';
 import { useDismiss } from '../p04-waterfalls/useDismiss.js';
 import { formatDay } from '../prototypes/request-portal/model.js';
+import { useViewAs } from '../../shell/viewAs.js';
 import { useFinalReport } from './finalReportData.js';
 
 export type DocumentsTab = 'documents' | 'requests' | 'exports' | 'final-report';
@@ -24,7 +25,9 @@ export type DocumentsTab = 'documents' | 'requests' | 'exports' | 'final-report'
  */
 export function DocumentsSubNav({ companyId, current }: { companyId: string; current: DocumentsTab }) {
   const report = useFinalReport(companyId, companyById(companyId).asOf);
-  const stale = report.status === 'out-of-date';
+  const [viewer] = useViewAs();
+  // Clients never see report statuses, so no warning mark for them.
+  const stale = report.status === 'out-of-date' && viewer === 'analyst';
   return (
     <>
       <TertiaryMenuItem current={current === 'documents'} href={href(routes.company.documents(companyId))}>Documents</TertiaryMenuItem>

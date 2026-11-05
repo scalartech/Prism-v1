@@ -7,7 +7,7 @@ import { Children, useEffect, useLayoutEffect, useRef, useState, type CSSPropert
 import {
   SelectMenu, SelectMenuOption, zIndex,
   Button, ButtonIcon, CheckboxItem, Chip, DocumentViewerHeader, EmptyState, FileRow, FilterDropdown, Heading, Icon, Input,
-  PageStepper, ScrollHintPill, Spinner, Text, ZoomControl, color, elevation, icons, radius, space,
+  PageStepper, ScrollHintPill, Spinner, Text, ZoomControl, color, elevation, icons, radius, size, space,
   type FileRowProps,
 } from '@scalar/design-system';
 import type { PageTab } from '../../shell/PageHeader.js';
@@ -54,12 +54,13 @@ export function FilterSelect<T extends string>({ label, value, options, onChange
 }
 
 /** One company in the left list: name, fund tag and what the tab counts for it. */
-export function CompanyRow({ name, fund, end, selected, onClick }: {
-  name: string; fund?: string; end: ReactNode; selected: boolean; onClick: () => void;
+export function CompanyRow({ id, name, fund, end, selected, onClick }: {
+  id?: string; name: string; fund?: string; end: ReactNode; selected: boolean; onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      data-company-id={id}
       aria-pressed={selected}
       onClick={onClick}
       style={{
@@ -103,6 +104,67 @@ export function CompanyColumn({ selectedId, onSelect, end }: {
         ))}
         {!shown.length && <EmptyState type="no-results" title="No companies match" body="Clear the search to see every company." />}
       </ScrollList>
+    </section>
+  );
+}
+
+/**
+ * The company list of a firm list + detail page (Requests, Reports): one list
+ * only, with search, the page's filters and a count line in its header. Rows
+ * are already filtered and sorted by the page; `end` is what each row counts
+ * (pending requests, report status). ↑/↓ move the selection; picking a company
+ * never leaves the page.
+ */
+export function CompanyListPanel({ label, rows, selectedId, onSelect, query, onQueryChange, filters, summary }: {
+  label: string;
+  rows: { company: DocCompany; end: ReactNode }[];
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  query: string;
+  onQueryChange: (q: string) => void;
+  /** Fund, Status, "With pending only" — under the search. */
+  filters?: ReactNode;
+  /** "200 of 200 companies · 39 with requests pending". */
+  summary: string;
+}) {
+  const list = useRef<HTMLDivElement>(null);
+  const move = (by: number) => {
+    const i = rows.findIndex((r) => r.company.id === selectedId);
+    const next = rows[Math.min(rows.length - 1, Math.max(0, i + by))];
+    if (!next) return;
+    onSelect(next.company.id);
+    list.current?.querySelector<HTMLElement>(`[data-company-id="${next.company.id}"]`)?.focus();
+  };
+  return (
+    <section
+      aria-label={label}
+      style={{ ...columnPanel, overflow: 'hidden', flex: `0 0 calc(${size.control.l} * 7.5)`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}
+    >
+      <Input
+        aria-label="Find company"
+        placeholder="Find company"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        leadingIcon={<Icon size="s" tone="secondary"><icons.Search /></Icon>}
+      />
+      {filters && <div style={{ display: 'flex', alignItems: 'center', gap: space.s, flexWrap: 'wrap' }}>{filters}</div>}
+      <Text step="s" tone="secondary" role="status">{summary}</Text>
+      {/* Arrow keys move the selection, like a listbox; each row stays a button so Tab still reaches it. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        ref={list}
+        style={{ display: 'flex', flex: 1, minHeight: 0 }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); move(e.key === 'ArrowDown' ? 1 : -1); }
+        }}
+      >
+        <ScrollList noun={['company', 'companies']}>
+          {rows.map(({ company: c, end }) => (
+            <CompanyRow key={c.id} id={c.id} name={c.name} fund={c.fund} end={end} selected={c.id === selectedId} onClick={() => onSelect(c.id)} />
+          ))}
+          {!rows.length && <EmptyState type="no-results" title="No companies match" body="Clear the search or the filters to see every company." />}
+        </ScrollList>
+      </div>
     </section>
   );
 }

@@ -329,13 +329,30 @@
     "title": "Documents › Requests",
     "figmaPage": "05 · Documents (Firm)",
     "route": "/documents/requests",
-    "summary": "Every company’s information request in one table — pending, resolved / total, due date, last activity — pending first; a company opens in its own context.",
+    "summary": "List + detail: pick a company on the left (pending first) and answer or upload its requests on the right without leaving the page.",
     "component": "FirmRequests",
     "states": [
       {
         "key": "default",
-        "label": "Requests — one company table, pending first",
+        "label": "Requests — company list + request pane",
         "figmaNode": "proto:firm-requests:1",
+        "section": "Requests",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "documents.requests.company",
+    "title": "Documents › Requests (company open)",
+    "figmaPage": "05 · Documents (Firm)",
+    "route": "/documents/requests/:companyId",
+    "summary": "Firm Requests deep-linked to one company: the same list + detail page with that company selected.",
+    "component": "FirmRequests",
+    "states": [
+      {
+        "key": "default",
+        "label": "Requests — one company open",
+        "figmaNode": "proto:firm-requests:2",
         "section": "Requests",
         "figmaUrl": null
       }
@@ -1257,13 +1274,30 @@
     "title": "Reports (prototype)",
     "figmaPage": "Prototype · reports",
     "route": "/reports",
-    "summary": "Every company’s Final Report for the header’s measurement date — Published, Out of date, Not created — with the ones that need work first.",
+    "summary": "List + preview: every company’s Final Report status on the left (the ones that need work first); the selected company’s report on the right.",
     "component": "Reports",
     "states": [
       {
         "key": "default",
-        "label": "Reports — final report status by company",
+        "label": "Reports — company list + report preview",
         "figmaNode": "proto:reports:1",
+        "section": "Prototype",
+        "figmaUrl": null
+      }
+    ]
+  },
+  {
+    "id": "prototype.reports.company",
+    "title": "Reports (company open)",
+    "figmaPage": "Prototype · reports",
+    "route": "/reports/:companyId",
+    "summary": "Reports deep-linked to one company: the same list + preview with that company’s final report open.",
+    "component": "Reports",
+    "states": [
+      {
+        "key": "default",
+        "label": "Reports — one company open",
+        "figmaNode": "proto:reports:2",
         "section": "Prototype",
         "figmaUrl": null
       }

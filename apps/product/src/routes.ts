@@ -18,11 +18,14 @@ export const routes = {
   valuations: '/valuations',
   waterfalls: '/waterfalls',
   documents: '/documents',
-  /** Firm Documents' row-2 tabs: All documents (`documents`) · Requests. A company opens in its own context. */
+  /** Firm Documents' row-2 tabs: All documents (`documents`) · Requests (list + detail; `request(id)` deep-links a company). */
   firmDocuments: {
     requests: '/documents/requests',
+    request: (companyId: string) => `/documents/requests/${companyId}`,
   },
   reports: '/reports',
+  /** Firm Reports with one company's final report open. */
+  report: (companyId: string) => `/reports/${companyId}`,
   company: {
     summary: c('summary'),
     incomeStatement: c('financials/income-statement'),
@@ -74,13 +77,13 @@ export const routes = {
 
 
 /**
- * Old links that moved. Questions folded into Requests at both levels, and a
- * company picked on firm Requests opens in its own context, so these paths
- * redirect instead of 404ing.
+ * Old links that moved. Questions folded into Requests at both levels, so
+ * these paths redirect instead of 404ing. (`/documents/requests/:id` is live
+ * again: firm Requests with that company open.)
  */
 const REDIRECTS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/documents\/questions$/, () => routes.firmDocuments.requests],
-  [/^\/documents\/(?:questions|requests)\/([^/]+)$/, (m) => routes.company.requests(m[1]!)],
+  [/^\/documents\/questions\/([^/]+)$/, (m) => routes.firmDocuments.request(m[1]!)],
   [/^\/companies\/([^/]+)\/documents\/questions$/, (m) => routes.company.requests(m[1]!)],
 ];
 

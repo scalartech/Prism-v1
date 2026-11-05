@@ -22,6 +22,8 @@ import {
 import type { ScreenProps } from '../../types.js';
 import { companyById, type Company } from '../../data/fixtures.js';
 import { CompanyLayout } from '../../shell/CompanyLayout.js';
+import { PrototypePanel } from '../../shell/PrototypePanel.js';
+import { useViewAs } from '../../shell/viewAs.js';
 import { byNumber, isResolved, matchesStatus, type RequestStatus, type StatusFilter } from '../prototypes/request-portal/model.js';
 import { DelegateDialog, DueDateDialog } from '../prototypes/request-portal/PortalModals.js';
 import { RequestRow } from '../prototypes/request-portal/RequestRow.js';
@@ -44,6 +46,8 @@ interface ToastItem { id: number; tone: 'positive' | 'negative' | 'info'; text: 
 
 export interface RequestsWorkspace {
   company: Company;
+  /** Live counts, for the firm list. */
+  counts: { total: number; resolved: number; pending: number };
   /** Tier 3 tools: the request meter, Expand, Status, Select All, Bulk actions, due date. */
   tools: ReactNode;
   content: ReactNode;
@@ -56,8 +60,22 @@ export interface RequestsWorkspace {
  * each in its own chrome. Switching company keeps the hook mounted and resets
  * filters, selection and the sender's notes to that company's.
  */
-export function useRequestsWorkspace(companyId: string | undefined, state: string): RequestsWorkspace {
+export interface WorkspaceOptions {
+  /**
+   * Firm Documents › Requests: the introduction starts folded to one line (a
+   * firm admin reads it once per company), and a list with nothing left
+   * pending offers the next company that has some.
+   */
+  firm?: boolean;
+  /** Firm: open the next company with pending requests (absent when there is none). */
+  onNextCompany?: () => void;
+}
+
+export function useRequestsWorkspace(companyId: string | undefined, state: string, opts: WorkspaceOptions = {}): RequestsWorkspace {
   const company = companyById(companyId);
+  // View as: a client user answers (the portal's wording) and doesn't set due dates.
+  const [viewer] = useViewAs();
+  const sender = viewer === 'analyst';
   const seed = useMemo(() => requestsSeed(company.id, state), [company.id, state]);
   const store = usePortalStore(requestsKey(company.id, state), seed);
   const metaKey = `${company.id}.${state}`;
@@ -74,7 +92,7 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
   const [bulkMenu, setBulkMenu] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [introOpen, setIntroOpen] = useState(true);
+  const [introOpen, setIntroOpen] = useState(!opts.firm);
   const [dialog, setDialog] = useState<'due-date' | 'delegate' | null>(null);
   const [delegateIds, setDelegateIds] = useState<string[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -82,8 +100,8 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
 
   // Another company's list starts unfiltered, with nothing selected or open.
   useEffect(() => {
-    setCategory('all'); setRecipient('all'); setSelected(new Set()); setExpanded(new Set()); setIntroOpen(true);
-  }, [company.id]);
+    setCategory('all'); setRecipient('all'); setSelected(new Set()); setExpanded(new Set()); setIntroOpen(!opts.firm);
+  }, [company.id, opts.firm]);
 
   // The confirmation the request builder leaves behind, shown once.
   useEffect(() => {
@@ -223,7 +241,10 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
           </div>
         )}
       </div>
-      {total > 0 && (
+      {total > 0 && !sender && (
+        <Text as="span" step="s" tone="secondary" style={{ whiteSpace: 'nowrap' }}>{`Due ${fmt(store.dueDate)}`}</Text>
+      )}
+      {total > 0 && sender && (
         // The sender sets the due date (an action, so a Button).
         <Button size="xs" variant="secondary" leadingIcon={<Icon size="s" tone="inherit"><icons.EditCalendar /></Icon>} onClick={() => setDialog('due-date')}
           aria-label={`Due ${fmt(store.dueDate)}. Change due date`}>
@@ -274,14 +295,18 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
           })}
         </nav>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: space.s, padding: space.m, borderTop: `1px solid ${color.stroke.divider}` }}>
-        <Text step="s" tone="secondary">Prototype: requests and responses are kept in this browser only.</Text>
-        <div><Button size="s" variant="tertiary" onClick={resetAll}>Reset prototype data</Button></div>
-      </div>
     </aside>
   );
 
-  const introduction = meta.introduction.length > 0 && introOpen && category === 'all' && (
+  const intro = meta.introduction.length > 0 && category === 'all';
+  const introduction = intro && !introOpen && opts.firm ? (
+    // Folded to one line on the firm page; it opens in place.
+    <div style={{ padding: `${space.xs} ${space.s}`, borderBottom: `1px solid ${color.stroke.divider}` }}>
+      <Button size="xs" variant="tertiary" aria-expanded={false} leadingIcon={<Icon size="s" tone="inherit"><icons.ChevronRight /></Icon>} onClick={() => setIntroOpen(true)}>
+        Introduction from Scalar
+      </Button>
+    </div>
+  ) : intro && introOpen && (
     <div style={{ padding: space.m, borderBottom: `1px solid ${color.stroke.divider}` }}>
       <Alert tone="info" title="Introduction sent with this request" onDismiss={() => setIntroOpen(false)} dismissLabel="Dismiss introduction">
         <div style={{ display: 'flex', flexDirection: 'column', gap: space.s }}>
@@ -324,7 +349,7 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
               onDelegate={(id) => openDelegate([id])}
               notify={notify}
               mobile={false}
-              viewer="sender"
+              viewer={sender ? 'sender' : 'recipient'}
               respondent={r.delegatee ?? recipientsOf(meta, r)[0]}
             />
           </RowWithHeader>
@@ -357,6 +382,9 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
         count={delegateIds.length}
         onSubmit={async (email) => { await store.delegate(delegateIds, email); notify('positive', `Delegated to ${email}.`); setSelected(new Set()); }}
       />
+      <PrototypePanel>
+        <Button size="s" variant="tertiary" onClick={resetAll}>Reset prototype data</Button>
+      </PrototypePanel>
     </>
   );
 
@@ -364,6 +392,19 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     <>
       {sentNote && (
         <Banner tone="positive" title="Information request sent" onDismiss={() => setSentNote(null)}>{sentNote}</Banner>
+      )}
+      {opts.firm && total > 0 && counts.pending === 0 && (
+        <Banner
+          tone="positive"
+          title="All requests resolved"
+          action={opts.onNextCompany && (
+            <Button variant="secondary" size="s" trailingIcon={<Icon size="s" tone="inherit"><icons.ArrowForward /></Icon>} onClick={opts.onNextCompany}>
+              Next company with pending requests
+            </Button>
+          )}
+        >
+          {`Every request to ${company.name} has an answer, a file or a status.`}
+        </Banner>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min-content, 1fr) minmax(0, 4fr)', gap: space.l, alignItems: 'start' }}>
@@ -376,11 +417,12 @@ export function useRequestsWorkspace(companyId: string | undefined, state: strin
     </>
   );
 
-  return { company, tools, content, overlay };
+  return { company, counts, tools, content, overlay };
 }
 
 export function Requests({ state, params }: ScreenProps) {
   const w = useRequestsWorkspace(params.companyId, state);
+  const [viewer] = useViewAs();
   usePageTitle(`${w.company.name} — Requests`);
   return (
     <CompanyLayout
@@ -389,7 +431,7 @@ export function Requests({ state, params }: ScreenProps) {
       date={w.company.asOf}
       headerEnd={<CompanyDocsHeaderEnd companyId={w.company.id} />}
       subNav={<DocumentsSubNav companyId={w.company.id} current="requests" />}
-      subNavEnd={<>{w.tools}<InfoRequestButton companyId={w.company.id} /></>}
+      subNavEnd={<>{w.tools}{viewer === 'analyst' && <InfoRequestButton companyId={w.company.id} />}</>}
       dock={false}
       overlay={w.overlay}
     >

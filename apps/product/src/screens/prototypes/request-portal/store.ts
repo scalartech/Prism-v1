@@ -27,7 +27,9 @@ interface Persisted {
 }
 
 // v3: shortNote / details / maxFiles and replaced versions changed the stored shape.
-const KEY = (key: string) => `scalar.request-portal.v3.${key}`;
+// v4: seeded due dates vary per list, so a firm-wide sort by due date has something to sort.
+const KEY = (key: string) => `scalar.request-portal.v4.${key}`;
+const spread = (key: string) => [...key].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 24 - 3;
 const LATENCY = 700;
 
 function load(key: string, seed: () => InformationRequest[]): Persisted {
@@ -35,7 +37,7 @@ function load(key: string, seed: () => InformationRequest[]): Persisted {
     const raw = window.localStorage.getItem(KEY(key));
     if (raw) return JSON.parse(raw) as Persisted;
   } catch { /* storage blocked: start from the fixture */ }
-  return { requests: seed(), dueDate: seedDueDate() };
+  return { requests: seed(), dueDate: seedDueDate(new Date(), spread(key)) };
 }
 
 function persist(key: string, data: Persisted) {

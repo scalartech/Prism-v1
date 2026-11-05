@@ -6,7 +6,8 @@
  *
  * Row 2 holds the tabs — All documents · Requests — in place of a page title
  * (the top nav already says Documents), so no global Documents view has a
- * third nav row; the document tools sit at the top of the body.
+ * third nav row. The same row carries the active tab's tools on its right
+ * (Select all, Search, Filter, Full screen), then pin and ⋮.
  *
  * Figma: 05 · Documents (Firm) → All Documents · Company Documents · Viewer & Add Folder (5 frames).
  */
@@ -190,9 +191,12 @@ export function Documents({ state }: ScreenProps) {
     indeterminate: !allChecked && checked.size > 0,
     onCheckedChange: (v: boolean) => setChecked(v ? new Set(everyId) : new Set()),
   };
-  /** The document tools, at the top of the document column (Tier 3 is gone at firm level). */
+  /**
+   * The document tools, on the tab row's right (Round 2 §2): the row that holds
+   * All documents · Requests carries the active tab's tools, then pin and ⋮.
+   */
   const tools = (
-    <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.xs }}>
       <Checkbox
         size="s"
         checked={allChecked}
@@ -232,13 +236,7 @@ export function Documents({ state }: ScreenProps) {
         tabs={firmDocsTabs}
         current="documents"
         trailing={<ToolbarKebab />}
-        actions={
-          <>
-            <Button variant="secondary" size="xs" leadingIcon={<Icon size="s" tone="inherit"><icons.Description /></Icon>}>Request Document</Button>
-            <Button variant="primary" size="xs" leadingIcon={<Icon size="s" tone="inherit"><icons.UploadFile /></Icon>}>Upload Document</Button>
-            <Button variant="primary" tone="positive" size="xs">Request Information</Button>
-          </>
-        }
+        actions={tools}
       />
 
       <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
@@ -251,10 +249,8 @@ export function Documents({ state }: ScreenProps) {
         {!company ? (
           /* All Documents — every measurement date */
           <section aria-label="All Documents" style={{ ...columnPanel, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.s }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: space.s }}>
-              <Heading level={2} step="m">All Documents</Heading>
-              {tools}
-            </div>
+            {/* The active tab names the view on screen; screen readers still get a heading. */}
+            <h2 className="scalar-visually-hidden">All documents</h2>
             {measurementDates.map((m) => {
               const open = expandedDates.has(m.date);
               return (
@@ -294,7 +290,6 @@ export function Documents({ state }: ScreenProps) {
                   All Documents
                 </Button>
               </div>
-              <div style={{ display: 'flex' }}>{tools}</div>
               {companyDates.map((d, i) => {
                 const open = expandedDates.has(d);
                 return (

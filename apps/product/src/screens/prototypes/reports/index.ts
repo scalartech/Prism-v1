@@ -9,10 +9,21 @@ export const screens: ScreenDef[] = [
     title: 'Reports (prototype)',
     figmaPage: 'Prototype · reports',
     route: routes.reports,
-    summary: 'Every company’s Final Report for the header’s measurement date — Published, Out of date, Not created — with the ones that need work first.',
+    summary: 'List + preview: every company’s Final Report status on the left (the ones that need work first); the selected company’s report on the right.',
     component: Reports,
     states: [
-      { key: 'default', label: 'Reports — final report status by company', figmaNode: 'proto:reports:1', section: 'Prototype' },
+      { key: 'default', label: 'Reports — company list + report preview', figmaNode: 'proto:reports:1', section: 'Prototype' },
+    ],
+  },
+  {
+    id: 'prototype.reports.company',
+    title: 'Reports (company open)',
+    figmaPage: 'Prototype · reports',
+    route: routes.report(':companyId'),
+    summary: 'Reports deep-linked to one company: the same list + preview with that company’s final report open.',
+    component: Reports,
+    states: [
+      { key: 'default', label: 'Reports — one company open', figmaNode: 'proto:reports:2', section: 'Prototype' },
     ],
   },
 ];
