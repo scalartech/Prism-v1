@@ -9,15 +9,18 @@
  * status — Published · Out of date (analysts only) · Not created · No
  * valuation. Analysts see the ones that need work first; clients, Published
  * first. Right: the final version, read-only — version history, Set as final
- * and Delete stay on the company's tab ("Open in company"). Zoom, Download and
- * Print sit in row 2, like Tier 3 on the company tab.
+ * and Delete stay on the company's tab ("Open in company").
+ *
+ * Tier 3 holds the list's filters (Fund, Status) on the left and the page's
+ * tools on the right — Zoom | Download · Print | Request Report · Create
+ * Report — like Tier 3 on the company tab. Row 2 is the title, pin and ⋮.
  *
  * Create Report (analysts) opens the selected company's Final Report with the
  * create flow. Request Report is unchanged (open question 4).
  */
 import { useMemo, useState } from 'react';
 import {
-  Button, Chip, ComboboxPanel, EmptyState, Icon, Link, Modal, Text, Toast, ToastViewport, icons, space,
+  Button, Chip, ComboboxPanel, EmptyState, Icon, Link, Modal, TertiaryMenu, Text, Toast, ToastViewport, icons, space,
 } from '@scalar/design-system';
 import type { ScreenProps } from '../../../types.js';
 import { href, navigate } from '../../../router.js';
@@ -170,10 +173,10 @@ export function Reports({ params }: ScreenProps) {
         </>
       }
     >
-      <PageHeader
-        title="Reports"
-        trailing={<ToolbarKebab />}
-        actions={
+      <PageHeader title="Reports" trailing={<ToolbarKebab />} />
+      <TertiaryMenu
+        label="Report filters and tools"
+        end={
           <>
             <ReportTools zoom={zoom} onZoom={setZoom} onDownload={download} disabled={!current?.final} />
             {!client && (
@@ -188,7 +191,17 @@ export function Reports({ params }: ScreenProps) {
             )}
           </>
         }
-      />
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: space.s }}>
+          <FilterSelect label="Fund" value={fund} onChange={setFund} options={[{ value: 'all', label: 'All funds' }, ...funds.map((f) => ({ value: f, label: f }))]} />
+          <FilterSelect<'all' | ReportStatus>
+            label="Status"
+            value={status}
+            onChange={setStatus}
+            options={[{ value: 'all', label: 'All statuses' }, ...statusOptions.map((k) => ({ value: k, label: reportStatusLabel[k] }))]}
+          />
+        </span>
+      </TertiaryMenu>
       <main style={{ ...scrollBody, display: 'flex', gap: space.l, padding: space.l, alignItems: 'stretch' }}>
         {all.length === 0 ? (
           // Only an empty portfolio is empty: otherwise every company shows, so missing reports are visible.
@@ -202,17 +215,6 @@ export function Reports({ params }: ScreenProps) {
               onSelect={select}
               query={query}
               onQueryChange={setQuery}
-              filters={
-                <>
-                  <FilterSelect label="Fund" value={fund} onChange={setFund} options={[{ value: 'all', label: 'All funds' }, ...funds.map((f) => ({ value: f, label: f }))]} />
-                  <FilterSelect<'all' | ReportStatus>
-                    label="Status"
-                    value={status}
-                    onChange={setStatus}
-                    options={[{ value: 'all', label: 'All statuses' }, ...statusOptions.map((k) => ({ value: k, label: reportStatusLabel[k] }))]}
-                  />
-                </>
-              }
               summary={client
                 ? `${rows.length} of ${all.length} companies · ${published} published`
                 : `${rows.length} of ${all.length} companies · ${needWork} need a final report`}
